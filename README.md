@@ -45,33 +45,33 @@ Some notable features include:
 
 ### Arguments
 
-**-data, --dataset (str)**
-		Which dataset to use
-	'Cifar-10', 'Cifar-100', 'Cinic-10', 'Cinic-10-enlarged', 'Fashion-MNIST, 'MNIST'
-**-norm, --dataset_norm_type (str)**
-		How to normalize data
-	'sandardize' --> mean of zero, standard deviation of one
-	'zeroone' --> image range of [0, 1]
-**-batch, --batch_size (int)**
-		Batch Size
-**-tbatch, --test_batch_size (int)**
-		Test Batch Size
-**-x, --max_epochs (int)**
-		How many epochs to run in total
-**-s, --seed (int)**
-		Random seed to use for reproducibility
-**-aug, --data_aug ([string])**
-		List of Data augmentation to apply
-	'random_h_flip', 'random_v_vlip', 'color_jitter', 'affine', 'random_crop', 'random_order', 'cutout
-	*NOTE*, if applying 'affine', the following three arguments must be given:
-	'random_rot_D', 'random_scale_S1_S2', 'random_sheer_P', where D defines the maximum rotation (in degrees), S1 and S2 define the lower and upper bounds for random scaling (between [0, 1]), and P defines the maximum sheer rotation (in degrees).
+**-data, --dataset (str)**  
+		Which dataset to use  
+	'Cifar-10', 'Cifar-100', 'Cinic-10', 'Cinic-10-enlarged', 'Fashion-MNIST, 'MNIST'  
+**-norm, --dataset_norm_type (str)**  
+		How to normalize data  
+	'sandardize' --> mean of zero, standard deviation of one  
+	'zeroone' --> image range of [0, 1]  
+**-batch, --batch_size (int)**  
+		Batch Size  
+**-tbatch, --test_batch_size (int)**  
+		Test Batch Size  
+**-x, --max_epochs (int)**  
+		How many epochs to run in total  
+**-s, --seed (int)**  
+		Random seed to use for reproducibility  
+**-aug, --data_aug ([string])**  
+		List of Data augmentation to apply  
+	'random_h_flip', 'random_v_vlip', 'color_jitter', 'affine', 'random_crop', 'random_order', 'cutout  
+	*NOTE*, if applying 'affine', the following three arguments must be given:  
+	'random_rot_D', 'random_scale_S1_S2', 'random_sheer_P', where D defines the maximum rotation (in degrees), S1 and S2 define the lower and upper bounds for random scaling (between [0, 1]), and P defines the maximum sheer rotation (in degrees).  
 **-en, --exp_name (str)**
 		Experiment name
 **-o, --logs_path (str)**
 		Directory to save log files, check points, and any images
 **-resume, --resume (int)**
 		Resume training from latest point in training. This is effectively a bool and will be False if resume is zero
-**-save, --save (int)**
+**-save, --save (int)**  
 		Save checkpoint files? This is effectively a bool and will be False if resume is zero
 **-model, --model (int)**
 		Which model to train
@@ -122,10 +122,10 @@ Additionally, the following are the required packages.
 - [scipy](https://www.scipy.org/)
 
 The suggested and easiest way to get this working quickly is to install [miniconda](https://conda.io/en/latest/miniconda.html) and then run the following two commands:  
-	`conda create -n deep-learning`
-	`conda install -n deep-learning pytorch torchvision cudatoolkit=9.0 tqdm scipy -c anaconda -c pytorch`
+	`conda create -n deep-learning`  
+	`conda install -n deep-learning pytorch torchvision cudatoolkit=9.0 tqdm scipy -c anaconda -c pytorch`  
 This assumes you will be using a GPU version. Once installation is complete, activate the enviroment with:  
-	`source activate deep-learning`
+	`source activate deep-learning ` 
 and then run this repo's code. 
 
 
