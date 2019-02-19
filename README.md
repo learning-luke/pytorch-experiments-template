@@ -31,12 +31,12 @@ Some notable features include:
 - A [notebook](notebooks/plot-results.ipynb) to exemplify the use of the simple logging features
 
 ### Example runs
-1. To train a 4 layer deep (2 convs of widths 64 and 128, 2 fully connected layers of widths 256, 10) CNN on MNIST:
-	`python train.py -en MNIST-cnn-4 -data MNIST -model cnn -fil 64 128 -str 2 2 -ker 3 3 -lin 256`
-2. To train a preactivation resnet, depth 18, on [Cinic-10-enlarged](https://github.com/BayesWatch/cinic-10):
-	`python train.py -en cinic10enlarged-preact-18 -data Cinic-10-enlarged -model preact_resnet -dep 18`
-3. To train a wide resnet, depth 40 and widen factor 2, on Cifar-10:
-	`python train.py -en Cifar-10-wresnet-40-2 -data Cifar-10 -model wresnet -dep 40 -wf 2`
+1. To train a 4 layer deep (2 convs of widths 64 and 128, 2 fully connected layers of widths 256, 10) CNN on MNIST:  
+  `python train.py -en MNIST-cnn-4 -data MNIST -model cnn -fil 64 128 -str 2 2 -ker 3 3 -lin 256`
+2. To train a preactivation resnet, depth 18, on [Cinic-10-enlarged](https://github.com/BayesWatch/cinic-10):  
+  `python train.py -en cinic10enlarged-preact-18 -data Cinic-10-enlarged -model preact_resnet -dep 18`
+3. To train a wide resnet, depth 40 and widen factor 2, on Cifar-10:  
+  `python train.py -en Cifar-10-wresnet-40-2 -data Cifar-10 -model wresnet -dep 40 -wf 2`
 
 ---
 
