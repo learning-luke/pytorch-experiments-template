@@ -33,8 +33,7 @@ def parse_args():
                         help='Resume training?')
     parser.add_argument('-save', '--save', type=int, default=0,
                         help='Save checkpoint files?')
-    parser.add_argument('-imgs', '--save_images', type=int, default=1,
-                        help='Save images?')
+
     # model
     parser.add_argument('-model', '--model', type=str, default='cnn',
                         help='resnet | preact_resnet | densenet | wresnet')
@@ -52,7 +51,7 @@ def parse_args():
     parser.add_argument('-str', '--strides', type=int, nargs='+', default=[2, 2, 2, 2],
                         help='Strides')
     parser.add_argument('-ker', '--kernel_sizes', type=int, nargs='+', default=[3, 3, 3, 3],
-                        help='Strides')
+                        help='Kernels')
     parser.add_argument('-lin', '--linear_widths', type=int, nargs='+', default=[256, 128],
                         help='Additional linear layer widths. If empty, cnn goes from conv outs to single linear layer')
     parser.add_argument('-bn', '--use_batch_norm', type=int, default=0,
@@ -70,22 +69,8 @@ def parse_args():
     parser.add_argument('-wd', '--weight_decay', type=float, default=1e-4,
                         help='Weight decay value')
     parser.add_argument('-mom', '--momentum', type=float, default=0.9,
-                        help='Weight decay value')
-    # label smoothing
-    parser.add_argument('-lsr', '--label_smoothing_regularisation', type=int, default=0,
-                        help='Label smoothing regularisation')
-    parser.add_argument('-lsr_eps', '--label_smoothing_regularisation_eps', type=float, default=0.1,
-                        help='Label smoothing regularisation, epsilon')
-    # dropblock
-    parser.add_argument('-dp', '--dropblock_probability', type=float, default=0.,
-                        help='Maximum dropblock probability')
-    # manifold mixup
-    parser.add_argument('-mmix', '--use_manifold_mixup', type=int, default=0,
-                        help='Use manifold mixup')
-    parser.add_argument('-mmix_alpha', '--manifold_mixup_alpha', type=float, default=0.2,
-                        help='Manifold mixup alpha')
-    parser.add_argument('-mmix_eligible', '--manifold_mixup_eligible', type=int, default=2,
-                        help='Eligible layers for manifold mixup')
+                        help='Momentum multiplier')
+
 
     args = parser.parse_args()
     print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))

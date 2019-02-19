@@ -77,7 +77,7 @@ net = net.to(device)
 params = net.parameters()
 criterion = nn.CrossEntropyLoss()
 
-if args.optim == 'SGD':
+if args.optim.lower() == 'sgd':
     optimizer = optim.SGD(params, lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
 else:
     optimizer = optim.Adam(params, lr=args.learning_rate, amsgrad=True, weight_decay=args.weight_decay)
