@@ -35,7 +35,9 @@ Some notable features include:
   `python train.py -en MNIST-cnn-4 -data MNIST -model cnn -fil 64 128 -str 2 2 -ker 3 3 -lin 256`
 2. To train a preactivation resnet, depth 18, on [Cinic-10-enlarged](https://github.com/BayesWatch/cinic-10):  
   `python train.py -en cinic10enlarged-preact-18 -data Cinic-10-enlarged -model preact_resnet -dep 18`
-3. To train a wide resnet, depth 40 and widen factor 2, on Cifar-10:  
+3. To train the same model using the random horizontal flips, random crops (with padding 4) and cutout:  
+  `python train.py -en cinic10enlarged-preact-18 -data Cinic-10-enlarged -model preact_resnet -dep 18 -aug random_h_flip random_crop cutout`
+4. To train a wide resnet, depth 40 and widen factor 2, on Cifar-10:  
   `python train.py -en Cifar-10-wresnet-40-2 -data Cifar-10 -model wresnet -dep 40 -wf 2`
 
 ---
