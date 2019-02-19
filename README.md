@@ -45,71 +45,70 @@ Some notable features include:
 
 ### Arguments
 
-**-data, --dataset (str)**  
-		Which dataset to use  
-	'Cifar-10', 'Cifar-100', 'Cinic-10', 'Cinic-10-enlarged', 'Fashion-MNIST, 'MNIST'  
-**-norm, --dataset_norm_type (str)**  
-		How to normalize data  
-	'sandardize' --> mean of zero, standard deviation of one  
-	'zeroone' --> image range of [0, 1]  
-**-batch, --batch_size (int)**  
-		Batch Size  
-**-tbatch, --test_batch_size (int)**  
-		Test Batch Size  
-**-x, --max_epochs (int)**  
-		How many epochs to run in total  
-**-s, --seed (int)**  
-		Random seed to use for reproducibility  
-**-aug, --data_aug ([string])**  
-		List of Data augmentation to apply  
-	'random_h_flip', 'random_v_vlip', 'color_jitter', 'affine', 'random_crop', 'random_order', 'cutout  
-	*NOTE*, if applying 'affine', the following three arguments must be given:  
-	'random_rot_D', 'random_scale_S1_S2', 'random_sheer_P', where D defines the maximum rotation (in degrees), S1 and S2 define the lower and upper bounds for random scaling (between [0, 1]), and P defines the maximum sheer rotation (in degrees).  
-**-en, --exp_name (str)**
-		Experiment name
-**-o, --logs_path (str)**
-		Directory to save log files, check points, and any images
-**-resume, --resume (int)**
-		Resume training from latest point in training. This is effectively a bool and will be False if resume is zero
-**-save, --save (int)**  
-		Save checkpoint files? This is effectively a bool and will be False if resume is zero
-**-model, --model (int)**
-		Which model to train
-	'resnet', 'preact_resnet', 'densenet', 'wresnet', 'cnn'
-**-dep, --resdepth (int)**
-		ResNet depth
-	For resnet, options are: 18, 34, 50, 101
-	For preact_resnet, options are: 18, 34, 50, 101
-	For densenet, options are: 121, 161, 169, 201
-	For wresnet, (depth - 4) % 6 = 0
-**-wf, --widen_factor (int)**
-		Wide resnet widen factor
-**-act, --activation**
-		Activation function for CNN, not relevant to resnets
-**-fil --filters ([int])**
-		Filter list for CNN
-**-str, --strides ([int])**
-		Strides list for CNN
-**-ker, --kernel_sizes ([int])**
-		Kernel size list for CNN
-**-lin, --linear_widths ([int])**
-		Additional linear layer widths. If empty, cnn goes from conv outs to single linear layer
-**-bn, --use_batch_norm (int)**
-		Use batch norm for CNN. This is effectively a bool and will be False if resume is zero
-**-l, --learning_rate (float)**
-		Base learning rate
-**-sched, --scheduler (str)**
-		Scheduler for learning rate annealing
-	'CosineAnnealing','MultiStep'
-**-mile, --milestones ([int])**
-		Milstones (epochs) for multi step scheduler annealing
-**-optim, --optim (str)**
-		Optimizer to use
-	'Adam', 'SGD'
-**-wd, --weight_decay (float)**
-		Weight decay value
-**-mom, --momentum**
-		Momentum multiplier
+- **-data, --dataset (str)**  
+   - Which dataset to use 
+   - 'Cifar-10', 'Cifar-100', 'Cinic-10', 'Cinic-10-enlarged', 'Fashion-MNIST, 'MNIST'  
+- **-norm, --dataset_norm_type (str)**  
+   - How to normalize data 
+   - 'sandardize' --> mean of zero, standard deviation of one  
+   - 'zeroone' --> image range of [0, 1]  
+- **-batch, --batch_size (int)**  
+   - Batch Size  
+- **-tbatch, --test_batch_size (int)**  
+   - Test Batch Size  
+- **-x, --max_epochs (int)**  
+   - How many epochs to run in total  
+- **-s, --seed (int)**  
+   - Random seed to use for reproducibility  
+- **-aug, --data_aug ([string])**  
+   - List of Data augmentation to apply  
+   - 'random_h_flip', 'random_v_vlip', 'color_jitter', 'affine', 'random_crop', 'random_order', 'cutout  
+   - *NOTE*, if applying 'affine', the following three arguments must be given:  'random_rot_D', 'random_scale_S1_S2', 'random_sheer_P', where D defines the maximum rotation (in degrees), S1 and S2 define the lower and upper bounds for random scaling (between [0, 1]), and P defines the maximum sheer rotation (in degrees).  
+- **-en, --exp_name (str)**
+   - Experiment name
+- **-o, --logs_path (str)**
+   - Directory to save log files, check points, and any images
+- **-resume, --resume (int)**
+   - Resume training from latest point in training. This is effectively a bool and will be False if resume is zero
+- **-save, --save (int)**  
+   - Save checkpoint files? This is effectively a bool and will be False if resume is zero
+- **-model, --model (int)**
+   - Which model to train
+   - 'resnet', 'preact_resnet', 'densenet', 'wresnet', 'cnn'
+- **-dep, --resdepth (int)**
+   - ResNet depth
+   - For resnet, options are: 18, 34, 50, 101
+   - For preact_resnet, options are: 18, 34, 50, 101
+   - For densenet, options are: 121, 161, 169, 201
+   - For wresnet, (depth - 4) % 6 = 0
+- **-wf, --widen_factor (int)**
+   - Wide resnet widen factor
+- **-act, --activation**
+   - Activation function for CNN, not relevant to resnets
+- **-fil --filters ([int])**
+   - Filter list for CNN
+- **-str, --strides ([int])**
+   - Strides list for CNN
+- **-ker, --kernel_sizes ([int])**
+   - Kernel size list for CNN
+- **-lin, --linear_widths ([int])**
+   - Additional linear layer widths. If empty, cnn goes from conv outs to single linear layer
+- **-bn, --use_batch_norm (int)**
+   - Use batch norm for CNN. This is effectively a bool and will be False if resume is zero
+- **-l, --learning_rate (float)**
+   - Base learning rate
+- **-sched, --scheduler (str)**
+   - Scheduler for learning rate annealing
+   - 'CosineAnnealing','MultiStep'
+- **-mile, --milestones ([int])**
+   - Milstones (epochs) for multi step scheduler annealing
+- **-optim, --optim (str)**
+   - Optimizer to use
+   - 'Adam', 'SGD'
+- **-wd, --weight_decay (float)**
+   - Weight decay value
+- **-mom, --momentum**
+   - Momentum multiplier
 
 ### Installation Guide
 Simply clone (`git clone git@github.com:learning-luke/overfit-aware-networks.git`) or download this repo and [run one of the commands](#Example-runs).

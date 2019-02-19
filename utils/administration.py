@@ -9,7 +9,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser()
     # data I/O
-    parser.add_argument('-data', '--dataset', type=str, default='Cifar-100',
+    parser.add_argument('-data', '--dataset', type=str, default='Cifar-10',
                         help='Which dataset to use')
     parser.add_argument('-norm', '--dataset_norm_type', type=str, default='standardize',
                         help='How to normalize data? Standardize | one')
