@@ -30,6 +30,12 @@ Some notable features include:
   - Colour jitter
 - A [notebook](notebooks/plot-results.ipynb) to exemplify the use of the simple logging features
 
+### Folder/file structure
+`train.py`: main training code, run this  
+&rarr;&rarr;&rarr; `models`: neural networks  
+&rarr;&rarr;&rarr; `notebooks`: notebooks for plotting results  
+&rarr;&rarr;&rarr; `utils`: necessary utilities, including experiment admin and datasets  
+
 ### Example runs
 1. To train the default CNN on Cifar-10:  
 	`python train.py`
