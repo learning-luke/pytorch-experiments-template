@@ -1,0 +1,7 @@
+*__pycache__*
+log*
+.idea*
+*.ipynb_checkpoints*
+*.png
+*tar*
+*.sh
