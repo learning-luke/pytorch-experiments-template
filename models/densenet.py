@@ -88,18 +88,18 @@ class DenseNet(nn.Module):
         return logits, (layer0, layer1, layer2, layer3, layer4, pool)
 
 
-def DenseNet121(growth_rate=32):
-    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=growth_rate)
+def DenseNet121(growth_rate=32, num_classes=10):
+    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=growth_rate, num_classes=num_classes)
 
 
-def DenseNet169(growth_rate=32):
-    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=growth_rate)
+def DenseNet169(growth_rate=32, num_classes=10):
+    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=growth_rate, num_classes=num_classes)
 
 
-def DenseNet201(growth_rate=32):
-    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=growth_rate)
+def DenseNet201(growth_rate=32, num_classes=10):
+    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=growth_rate, num_classes=num_classes)
 
 
-def DenseNet161(growth_rate=48):
-    return DenseNet(Bottleneck, [6,12,36,24], growth_rate=growth_rate)
+def DenseNet161(growth_rate=48, num_classes=10):
+    return DenseNet(Bottleneck, [6,12,36,24], growth_rate=growth_rate, num_classes=num_classes)
 

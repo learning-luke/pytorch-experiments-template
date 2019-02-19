@@ -38,37 +38,37 @@ class ModelSelector():
                 assert args.resdepth in [18, 34, 50, 101, 152], \
                     "Non-standard and unsupported resnet depth ({})".format(args.resdepth)
                 if args.resdepth == 18:
-                    net = ResNet18()
+                    net = ResNet18(self.num_classes)
                 elif args.resdepth == 34:
-                    net = ResNet34()
+                    net = ResNet34(self.num_classes)
                 elif args.resdepth == 50:
-                    net = ResNet50()
+                    net = ResNet50(self.num_classes)
                 elif args.resdepth == 101:
-                    net = ResNet101()
+                    net = ResNet101(self.num_classes)
                 else:
                     net = ResNet152()
             elif model == 'densenet':
                 assert args.resdepth in [121, 161, 169, 201], \
                     "Non-standard and unsupported densenet depth ({})".format(args.resdepth)
                 if args.resdepth == 121:
-                    net = DenseNet121(growth_rate=12)  # NB NOTE: growth rate controls cifar implementation
+                    net = DenseNet121(growth_rate=12, num_classes=self.num_classes)  # NB NOTE: growth rate controls cifar implementation
                 elif args.resdepth == 161:
-                    net = DenseNet161(growth_rate=12)
+                    net = DenseNet161(growth_rate=12, num_classes=self.num_classes)
                 elif args.resdepth == 169:
-                    net = DenseNet169(growth_rate=12)
+                    net = DenseNet169(growth_rate=12, num_classes=self.num_classes)
                 else:
-                    net = DenseNet201(growth_rate=12)
+                    net = DenseNet201(growth_rate=12, num_classes=self.num_classes)
             elif model == 'preact_resnet':
                 assert args.resdepth in [18, 34, 50, 101, 152], \
                     "Non-standard and unsupported preact resnet depth ({})".format(args.resdepth)
                 if args.resdepth == 18:
-                    net = PreActResNet18()
+                    net = PreActResNet18(self.num_classes)
                 elif args.resdepth == 34:
-                    net = PreActResNet34()
+                    net = PreActResNet34(self.num_classes)
                 elif args.resdepth == 50:
-                    net = PreActResNet50()
+                    net = PreActResNet50(self.num_classes)
                 elif args.resdepth == 101:
-                    net = PreActResNet101()
+                    net = PreActResNet101(self.num_classes)
                 else:
                     net = PreActResNet152()
             elif model == 'wresnet':

@@ -9,7 +9,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser()
     # data I/O
-    parser.add_argument('-data', '--dataset', type=str, default='Cifar-10',
+    parser.add_argument('-data', '--dataset', type=str, default='Cifar-100',
                         help='Which dataset to use')
     parser.add_argument('-norm', '--dataset_norm_type', type=str, default='standardize',
                         help='How to normalize data? Standardize | one')
@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument('-imgs', '--save_images', type=int, default=1,
                         help='Save images?')
     # model
-    parser.add_argument('-model', '--model', type=str, default='densenet',
+    parser.add_argument('-model', '--model', type=str, default='cnn',
                         help='resnet | preact_resnet | densenet | wresnet')
     # resnet models
     parser.add_argument('-dep', '--resdepth', type=int, default=121,
