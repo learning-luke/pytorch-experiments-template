@@ -28,7 +28,7 @@ Some notable features include:
   - Random scaling
   - Random shearing
   - Colour jitter
-- A notebook to exemplify the use of the simple logging features
+- A [notebook](notebooks/plot-results.ipynb) to exemplify the use of the simple logging features
 
 ---
 
