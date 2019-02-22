@@ -78,6 +78,8 @@ Some notable features include:
    - Resume training from latest point in training. This is effectively a bool and will be False if resume is zero
 - **-save, --save (int)**  
    - Save checkpoint files? This is effectively a bool and will be False if resume is zero
+- **-saveimg, --save_images (int)**  
+   - Create a folder for saved images in log directory? This is effectively a bool and will be False if resume is zero
 - **-model, --model (int)**
    - Which model to train
    - 'resnet', 'preact_resnet', 'densenet', 'wresnet', 'cnn'
