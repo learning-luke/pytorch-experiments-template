@@ -33,6 +33,8 @@ def parse_args():
                         help='Resume training?')
     parser.add_argument('-save', '--save', type=int, default=0,
                         help='Save checkpoint files?')
+    parser.add_argument('-saveimg', '--save_images', type=int, default=0,
+                        help='Build image folder?')
 
     # model
     parser.add_argument('-model', '--model', type=str, default='cnn',
