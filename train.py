@@ -48,6 +48,18 @@ print("Testing --> {} images and {} batches".format(n_test_images, n_test_batche
 
 saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(args)
 
+
+import glob
+import tarfile
+snapshot_filename = '{}/snapshot.tar.gz'.format(saved_models_filepath)
+filetypes_to_include = ['.py']
+all_files = []
+for filetype in filetypes_to_include:
+    all_files += glob.glob('**/*.py', recursive=True)
+with tarfile.open(snapshot_filename, "w:gz") as tar:
+    for file in all_files:
+        tar.add(file)
+
 start_epoch, latest_loadpath = get_start_epoch(args)
 args.latest_loadpath = latest_loadpath
 best_epoch, best_test_acc = get_best_epoch(args)
