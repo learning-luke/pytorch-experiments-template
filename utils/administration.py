@@ -11,6 +11,8 @@ def parse_args():
     # data I/O
     parser.add_argument('-data', '--dataset', type=str, default='Cifar-10',
                         help='Which dataset to use')
+    parser.add_argument('-root', '--root', type=str, default='../data',
+                        help='Which dataset to use')
     parser.add_argument('-norm', '--dataset_norm_type', type=str, default='standardize',
                         help='How to normalize data? Standardize | one')
     parser.add_argument('-batch', '--batch_size', type=int, default=128,
@@ -31,7 +33,7 @@ def parse_args():
                         help='Directory to save log files, check points, and tensorboard.')
     parser.add_argument('-resume', '--resume', type=int, default=0,
                         help='Resume training?')
-    parser.add_argument('-save', '--save', type=int, default=0,
+    parser.add_argument('-save', '--save', type=int, default=1,
                         help='Save checkpoint files?')
 
     parser.add_argument('-saveimgs', '--save_images', type=int, default=0,
@@ -39,10 +41,10 @@ def parse_args():
 
 
     # model
-    parser.add_argument('-model', '--model', type=str, default='cnn',
+    parser.add_argument('-model', '--model', type=str, default='resnet',
                         help='resnet | preact_resnet | densenet | wresnet')
     # resnet models
-    parser.add_argument('-dep', '--resdepth', type=int, default=121,
+    parser.add_argument('-dep', '--resdepth', type=int, default=18,
                         help='ResNet default depth')
     parser.add_argument('-wf', '--widen_factor', type=int, default=2,
                         help='Wide resnet widen factor')
@@ -70,7 +72,7 @@ def parse_args():
     parser.add_argument('-optim', '--optim', type=str, default='SGD',
                         help='Optimizer?')
     # simple regularisation
-    parser.add_argument('-wd', '--weight_decay', type=float, default=1e-4,
+    parser.add_argument('-wd', '--weight_decay', type=float, default=5e-4,
                         help='Weight decay value')
     parser.add_argument('-mom', '--momentum', type=float, default=0.9,
                         help='Momentum multiplier')

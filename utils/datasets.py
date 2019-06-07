@@ -121,10 +121,10 @@ def load_dataset(args):
         "dataset {} not supported".format(args.dataset)
     in_shape = (28, 28, 1) if 'MNIST' in args.dataset else (32, 32, 3)  # Woohoo, great variety here.
 
-    root = '../data/{}'.format(args.dataset)
+    data_dir = args.root
 
     train_dataset = CustomDataset(which_set=args.dataset,
-                                  root=root,
+                                  root='{}/{}'.format(data_dir, args.dataset),
                                   train=True,
                                   download=True,
                                   aug=args.data_aug,
@@ -133,7 +133,7 @@ def load_dataset(args):
                                               batch_size=args.batch_size, shuffle=True)
 
     test_dataset = CustomDataset(which_set=args.dataset,
-                                 root=root,
+                                 root='{}/{}'.format(data_dir, args.dataset),
                                  train=False,
                                  download=True,
                                  aug=[],
