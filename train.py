@@ -151,7 +151,8 @@ def run_epoch(epoch, train=True):
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-            iter_out = '{}: {}; Loss: {:0.4f}, Loss_c: {:0.4f}, Acc: {:0.4f}'.format(
+            iter_out = '{}, {}: {}; Loss: {:0.4f}, Loss_c: {:0.4f}, Acc: {:0.4f}'.format(
+                args.exp_name,
                 identifier,
                 batch_idx,
                 total_loss / (batch_idx + 1),
