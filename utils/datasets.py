@@ -1,8 +1,26 @@
 from torchvision import datasets, transforms
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Sampler, SubsetRandomSampler
 import torch
 from utils.augmentors import Cutout
 from utils.cinic_utils import enlarge_cinic_10, download_cinic
+import numpy as np
+
+
+class SubsetSequentialSampler(Sampler):
+    r"""Samples elements sequentially, always in the same order.
+
+    Arguments:
+       indices: Indices to sample from
+    """
+
+    def __init__(self, indices):
+        self.indices = indices
+
+    def __iter__(self):
+        return iter(self.indices)
+
+    def __len__(self):
+        return len(self.indices)
 
 class CustomDataset(Dataset):
     def __init__(self,
@@ -122,24 +140,63 @@ def load_dataset(args):
     in_shape = (28, 28, 1) if 'MNIST' in args.dataset else (32, 32, 3)  # Woohoo, great variety here.
 
     data_dir = args.root
+    root = None if args.root.lower() == 'default' else '{}/{}'.format(data_dir, args.dataset)
+
+    num_classes = 10
+    if args.dataset == 'Cifar-100':
+        num_classes = 100
+    elif args.dataset == 'Cifar-100-20':
+        num_classes = 20
 
     train_dataset = CustomDataset(which_set=args.dataset,
-                                  root='{}/{}'.format(data_dir, args.dataset),
+                                  root=root,
                                   train=True,
                                   download=True,
                                   aug=args.data_aug,
                                   dataset_norm_type=args.dataset_norm_type)
-    trainloader = torch.utils.data.DataLoader(train_dataset,
-                                              batch_size=args.batch_size, shuffle=True)
 
-    test_dataset = CustomDataset(which_set=args.dataset,
-                                 root='{}/{}'.format(data_dir, args.dataset),
-                                 train=False,
-                                 download=True,
-                                 aug=[],
-                                 dataset_norm_type=args.dataset_norm_type)
-    testloader = torch.utils.data.DataLoader(test_dataset,
-                                             batch_size=args.test_batch_size, shuffle=False)
+    train_idxs = np.arange(len(train_dataset))
+    validation_p = 0.1
+    num = int(validation_p * len(train_dataset) / num_classes)
+    if args.test == 0:
+        validation_idxs = np.array([])
+        try:
+            labels = train_dataset.dataset.train_labels
+        except:
+            labels = train_dataset.dataset.targets
+        for ci in range(num_classes):
+            idxs_this_ci = np.random.choice((np.array(labels) == ci).nonzero()[0], num, replace=False)
+            validation_idxs = np.concatenate((validation_idxs, idxs_this_ci))
+        train_idxs = np.setdiff1d(train_idxs, validation_idxs)
+
+        trainloader = torch.utils.data.DataLoader(train_dataset,
+                                                  batch_size=args.batch_size,
+                                                  sampler=SubsetRandomSampler(train_idxs),
+                                                  num_workers=4,
+                                                  pin_memory=True)
+
+        testloader = torch.utils.data.DataLoader(train_dataset,
+                                                 batch_size=args.test_batch_size,
+                                                 sampler=SubsetSequentialSampler(list(validation_idxs.astype(int))),
+                                                 pin_memory=True, )
+    else:
+        trainloader = torch.utils.data.DataLoader(train_dataset,
+                                                  batch_size=args.batch_size,
+                                                  shuffle=True,
+                                                  num_workers=8,
+                                                  pin_memory=True,
+                                                  drop_last=True,
+                                                  )
+        test_dataset = CustomDataset(which_set=args.dataset,
+                                     root=root,
+                                     train=False,
+                                     download=True,
+                                     aug=[],
+                                     dataset_norm_type=args.dataset_norm_type, )
+        testloader = torch.utils.data.DataLoader(test_dataset,
+                                                 batch_size=args.test_batch_size, shuffle=False,
+                                                 pin_memory=True, )
+
 
     args.norm_means = train_dataset.norm_means
     args.norm_stds = train_dataset.norm_stds

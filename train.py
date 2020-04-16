@@ -3,7 +3,6 @@ Adapted from: https://github.com/kuangliu/pytorch-cifar/blob/master/main.py,
 and my own work
 '''
 import os
-
 import numpy as np
 import tqdm
 import torch
@@ -17,7 +16,8 @@ from models.model_selector import ModelSelector
 from utils.datasets import load_dataset
 from utils.administration import parse_args
 import random
-
+from torchvision.utils import save_image
+from utils.torchsummary import summary
 args = parse_args()
 
 ######################################################################################################### Seeding
@@ -34,7 +34,6 @@ if device == 'cuda':
 
 ######################################################################################################### Data
 trainloader, testloader, in_shape = load_dataset(args)
-
 n_train_batches = len(trainloader)
 n_train_images = len(trainloader.dataset)
 n_test_batches = len(testloader)
@@ -45,10 +44,10 @@ print("Training --> {} images and {} batches".format(n_train_images, n_train_bat
 print("Testing --> {} images and {} batches".format(n_test_images, n_test_batches))
 
 ######################################################################################################### Admin
-
+# Build folders
 saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(args)
 
-
+# Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your many experiments was actually quite good but you forgot what you did
 import glob
 import tarfile
 snapshot_filename = '{}/snapshot.tar.gz'.format(saved_models_filepath)
@@ -60,6 +59,7 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
     for file in all_files:
         tar.add(file)
 
+# For resuming the model training, find out from where
 start_epoch, latest_loadpath = get_start_epoch(args)
 args.latest_loadpath = latest_loadpath
 best_epoch, best_test_acc = get_best_epoch(args)
@@ -67,6 +67,7 @@ if best_epoch >= 0:
     print('Best evaluation acc so far at {} epochs: {:0.2f}'.format(best_epoch, best_test_acc))
 
 if not args.resume:
+    # These are the currently tracked stats. I'm sure there are cleaner ways of doing this though.
     save_statistics(logs_filepath, "result_summary_statistics",
                     ["epoch",
                      "train_loss",
@@ -83,6 +84,10 @@ num_classes = 10 if args.dataset != 'Cifar-100' else 100
 net = ModelSelector(in_shape=in_shape,
                     num_classes=num_classes).select(args.model, args)
 print_network_stats(net)
+
+print('Network summary:')
+summary(net, (in_shape[2], in_shape[0], in_shape[1]), args.batch_size)
+
 net = net.to(device)
 
 ######################################################################################################### Optimisation
@@ -101,9 +106,13 @@ else:
 
 ######################################################################################################### Restoring
 
-if args.resume:
-    restore_model(net, optimizer, args)
+restore_fields = {
+    'net': net,
+    'optimizer':optimizer,
+}
 
+if args.resume:
+    restore_model(restore_fields, args)
 ######################################################################################################### Training
 
 
@@ -163,6 +172,10 @@ def run_epoch(epoch, train=True):
             pbar.set_description(iter_out)
             pbar.update()
 
+            if args.save_images and batch_idx==0:
+                # Would save any images here under '{}/{}/{}_stuff.png'.format(images_filepath, identifier, epoch)
+                pass
+
     return total_loss / batches, total_loss_c / batches, correct / total
 
 
@@ -183,16 +196,8 @@ if __name__ == "__main__":
                              train_acc,
                              test_acc])
 
-            ############################################################################################################
+            ############################################################################################## Saving models
             if args.save:
-                # Saving models
-                is_best = False
-                previous_best_epoch = -1
-                if best_test_acc <= test_acc:
-                    previous_best_epoch = best_epoch
-                    best_test_acc = test_acc
-                    best_epoch = epoch
-                    is_best = True
                 state = {
                     'epoch': epoch,
                     'net': net.state_dict(),
@@ -200,19 +205,13 @@ if __name__ == "__main__":
                 }
                 epoch_pbar.set_description('Saving at {}/{}_checkpoint.pth.tar'.format(saved_models_filepath, epoch))
                 filename = '{}_checkpoint.pth.tar'.format(epoch)
-
                 previous_save = '{}/{}_checkpoint.pth.tar'.format(saved_models_filepath, epoch - 1)
                 if os.path.isfile(previous_save):
                     os.remove(previous_save)
-
-                previous_best_save = '{}/best_{}_checkpoint.pth.tar'.format(saved_models_filepath, previous_best_epoch)
-                if os.path.isfile(previous_best_save) and is_best:
-                    os.remove(previous_best_save)
-
                 save_checkpoint(state=state,
                                 directory=saved_models_filepath,
                                 filename=filename,
-                                is_best=is_best)
+                                is_best=False)
             ############################################################################################################
 
             epoch_pbar.set_description('')

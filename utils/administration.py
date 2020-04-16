@@ -10,11 +10,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     # data I/O
     parser.add_argument('-data', '--dataset', type=str, default='Cifar-10',
-                        help='Which dataset to use')
+                        help='Which dataset to use: Cifar-10, Cifar-100, Cinic-10, Cinic-10-enlarged, MNIST, Fashion-MNIST')
     parser.add_argument('-root', '--root', type=str, default='../data',
                         help='Which dataset to use')
     parser.add_argument('-norm', '--dataset_norm_type', type=str, default='standardize',
-                        help='How to normalize data? Standardize | one')
+                        help='How to normalize data? Standardize | zeroone')
     parser.add_argument('-batch', '--batch_size', type=int, default=128,
                         help='Batch Size')
     parser.add_argument('-tbatch', '--test_batch_size', type=int, default=100,
@@ -24,8 +24,11 @@ def parse_args():
     parser.add_argument('-s', '--seed', type=int, default=0,
                         help='Random seed to use')
     parser.add_argument('-aug', '--data_aug', type=str, nargs='+',
-                        default=['NONE'],#['random_h_flip', 'random_crop'],
-                        help='Data augmentation?')
+                        default=['NONE'],#['random_h_flip', 'random_crop', 'cutout'],
+                        help='Data augmentation policies to apply. Can be: random_h_flip; random_v_flip; color_jitter; affine, which would also include random_rot_DEGREES, random_scale_SMALLEST_LARGEST, random_shear_DEGREES. [caps denote params you can set]')
+    parser.add_argument('-test', '--test', type=int, default=0,
+                        help='Test flag. If 0, will build a validation of size 10% set out of training set, otherwise will use test set')
+
     # logging
     parser.add_argument('-en', '--exp_name', type=str, default='tester',
                         help='Experiment name for the model to be assessed')
@@ -35,7 +38,6 @@ def parse_args():
                         help='Resume training?')
     parser.add_argument('-save', '--save', type=int, default=1,
                         help='Save checkpoint files?')
-
     parser.add_argument('-saveimgs', '--save_images', type=int, default=0,
                         help='Build a folder for saved images?')
 
@@ -62,6 +64,7 @@ def parse_args():
                         help='Additional linear layer widths. If empty, cnn goes from conv outs to single linear layer')
     parser.add_argument('-bn', '--use_batch_norm', type=int, default=0,
                         help='Use batch norm for simple CNN?')
+
     # optimization
     parser.add_argument('-l', '--learning_rate', type=float, default=0.1,
                         help='Base learning rate')
@@ -71,6 +74,7 @@ def parse_args():
                         help='Multi step scheduler annealing milestones')
     parser.add_argument('-optim', '--optim', type=str, default='SGD',
                         help='Optimizer?')
+
     # simple regularisation
     parser.add_argument('-wd', '--weight_decay', type=float, default=5e-4,
                         help='Weight decay value')

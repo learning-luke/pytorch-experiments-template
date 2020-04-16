@@ -232,13 +232,13 @@ def save_checkpoint(state, is_best, directory='', filename='checkpoint.pth.tar')
         shutil.copyfile(save_path, best_save_path)
 
 
-def restore_model(net, optimizer, args):
+def restore_model(restore_fields, args):
     """
     Model restoration. This is built into the experiment framework and args.latest_loadpath should contain the path
     to the latest restoration point. This is automatically set in the framework
     :param net: Network to restore weights of
-    :param optimizer: sometimes the optimizer also needs to be restored. 
-    :param args: 
+    :param optimizer: sometimes the optimizer also needs to be restored.
+    :param args:
     :return: Nothing, only restore the network and optimizer.
     """
 
@@ -246,25 +246,16 @@ def restore_model(net, optimizer, args):
     print('Latest, continuing from {}'.format(restore_path))
     checkpoint = torch.load(restore_path, map_location=lambda storage, loc: storage)
 
-    new_state_dict = OrderedDict()
-    for k, v in checkpoint['net'].items():
-        if 'module' in k and args.device == 'cpu':
-            name = k.replace("module.", "")  # remove module.
-        else:
-            name = k
-        new_state_dict[name] = v
+    for name, field in restore_fields.items():
+        new_state_dict = OrderedDict()
+        for k, v in checkpoint[name].items():
+            if 'module' in k and args.device == 'cpu':
+                name = k.replace("module.", "")  # remove module.
+            else:
+                name = k
+            new_state_dict[name] = v
 
-    net.load_state_dict(new_state_dict)
-
-    new_state_dict = OrderedDict()
-    for k, v in checkpoint['optimizer'].items():
-        if 'cuda' in k and args.device == 'cpu':
-            name = k.replace("cuda.", "")  # remove module.
-        else:
-            name = k
-        new_state_dict[name] = v
-
-    optimizer.load_state_dict(new_state_dict)
+        field.load_state_dict(new_state_dict)
 
 
 def build_experiment_folder(args):
