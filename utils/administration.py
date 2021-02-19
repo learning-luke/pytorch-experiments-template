@@ -30,7 +30,7 @@ def parse_args():
                         help='Test flag. If 0, will build a validation of size 10% set out of training set, otherwise will use test set')
 
     # logging
-    parser.add_argument('-en', '--exp_name', type=str, default='tester',
+    parser.add_argument('-en', '--experiment_name', type=str, default='tester',
                         help='Experiment name for the model to be assessed')
     parser.add_argument('-o', '--logs_path', type=str, default='log',
                         help='Directory to save log files, check points, and tensorboard.')

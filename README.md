@@ -70,7 +70,7 @@ Some notable features include:
    - List of Data augmentation to apply  
    - 'random_h_flip', 'random_v_vlip', 'color_jitter', 'affine', 'random_crop', 'random_order', 'cutout  
    - *NOTE*, if applying 'affine', the following three arguments must be given:  'random_rot_D', 'random_scale_S1_S2', 'random_sheer_P', where D defines the maximum rotation (in degrees), S1 and S2 define the lower and upper bounds for random scaling (between [0, 1]), and P defines the maximum sheer rotation (in degrees).  
-- **-en, --exp_name (str)**
+- **-en, --experiment_name (str)**
    - Experiment name
 - **-o, --logs_path (str)**
    - Directory to save log files, check points, and any images

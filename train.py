@@ -10,14 +10,14 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-from utils.storage import build_experiment_folder, save_statistics, save_checkpoint, restore_model, \
-    get_start_epoch, get_best_epoch, save_activations, save_image_batch, print_network_stats
+from utils.storage import build_experiment_folder, save_metrics_dict_in_json, save_checkpoint, restore_model, \
+    get_start_epoch, get_best_performing_epoch_on_target_metric, load_metrics_dict_from_json
 from models.model_selector import ModelSelector
 from utils.datasets import load_dataset
 from utils.administration import parse_args
 import random
-from torchvision.utils import save_image
 from utils.torchsummary import summary
+
 args = parse_args()
 
 ######################################################################################################### Seeding
@@ -26,9 +26,9 @@ args = parse_args()
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)  # set seed
 random.seed(args.seed)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 args.device = device
-if device == 'cuda':
+if torch.cuda.is_available():
     torch.cuda.manual_seed_all(args.seed)
     torch.backends.cudnn.deterministic = True
 
@@ -43,13 +43,16 @@ print("Data loaded successfully ")
 print("Training --> {} images and {} batches".format(n_train_images, n_train_batches))
 print("Testing --> {} images and {} batches".format(n_test_images, n_test_batches))
 
-######################################################################################################### Admin
-# Build folders
-saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(args)
+######################################################################################################### Additional Admin
+# Build folders for experiment
+saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(experiment_name=args.experiment_name,
+                                                                                log_path=args.logs_path,
+                                                                                save_images=args.save_images)
 
 # Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your many experiments was actually quite good but you forgot what you did
 import glob
 import tarfile
+
 snapshot_filename = '{}/snapshot.tar.gz'.format(saved_models_filepath)
 filetypes_to_include = ['.py']
 all_files = []
@@ -62,28 +65,35 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
 # For resuming the model training, find out from where
 start_epoch, latest_loadpath = get_start_epoch(args)
 args.latest_loadpath = latest_loadpath
-best_epoch, best_test_acc = get_best_epoch(args)
-if best_epoch >= 0:
-    print('Best evaluation acc so far at {} epochs: {:0.2f}'.format(best_epoch, best_test_acc))
+
+compute_accuracy = lambda logits, targets: torch.mean(torch.logits == targets)
+cross_entropy = nn.CrossEntropyLoss()
+
+differentiable_loss_a = lambda logits, targets: cross_entropy.forward(input=logits, target=targets)
+differentiable_loss_b = lambda logits, targets: cross_entropy.forward(input=logits, target=targets)
+mixed_loss = lambda logits, targets: differentiable_loss_a(logits, targets) + differentiable_loss_b(logits, targets)
+
+metric_functions_dict = {'train': {'loss': nn.CrossEntropyLoss, 'acc': compute_accuracy},
+                         'val': {'loss': nn.CrossEntropyLoss, 'acc': compute_accuracy},
+                         'test': {'loss': nn.CrossEntropyLoss, 'acc': compute_accuracy}}
+
+metric_values_dict = {'epoch': [],
+                      'train': {},
+                      'val': {},
+                      'test': {}}
+
+summary_functions_to_be_collected_dict = {np.mean, np.std}
 
 if not args.resume:
     # These are the currently tracked stats. I'm sure there are cleaner ways of doing this though.
-    save_statistics(logs_filepath, "result_summary_statistics",
-                    ["epoch",
-                     "train_loss",
-                     "test_loss",
-                     "train_loss_c",
-                     "test_loss_c",
-                     "train_acc",
-                     "test_acc",
-                     ],
-                    create=True)
+    save_metrics_dict_in_json(log_dir=logs_filepath, metrics_file_name='metrics_summaries.json',
+                              metrics_dict=metric_values_dict, overwrite=True)
+else:
+    metrics_dict = load_metrics_dict_from_json(log_dir=logs_filepath, metrics_file_name='metrics_summaries.json')
 
 ######################################################################################################### Model
 num_classes = 10 if args.dataset != 'Cifar-100' else 100
-net = ModelSelector(in_shape=in_shape,
-                    num_classes=num_classes).select(args.model, args)
-print_network_stats(net)
+net = ModelSelector(in_shape=in_shape, num_classes=num_classes).select(args.model, args)
 
 print('Network summary:')
 summary(net, (in_shape[2], in_shape[0], in_shape[1]), args.batch_size)
@@ -108,73 +118,60 @@ else:
 
 restore_fields = {
     'net': net,
-    'optimizer':optimizer,
+    'optimizer': optimizer,
 }
 
 if args.resume:
     restore_model(restore_fields, args)
+
 ######################################################################################################### Training
-
-
-def get_losses(inputs, targets):
-    """
-    It tends to be much easier to calculate losses, particularly considering there may be many of these, in a function.
-    :param inputs: Input images, X
-    :param targets: Input targets, y
-    :return: Losses, logits, activations, and targets (in case of a change of targets)
-    """
-
-    logits, activations = net(inputs)
-    loss = criterion(logits, targets)
-    return (loss, ), logits, activations, targets
 
 def run_epoch(epoch, train=True):
     global net
+
     if train:
         net.train()
     else:
         net.eval()
-    total_loss = 0
-    total_loss_c = 0
-    correct = 0
-    total = 0
-    batches = n_train_batches if train else n_test_batches
+
     identifier = 'train' if train else 'test'
-    with tqdm.tqdm(initial=0, total=batches) as pbar:
+    with tqdm.tqdm(initial=0, total=len(trainloader)) as pbar:
+        temp_epoch_metric_collection = {key: [] for key in metric_functions_dict[identifier].keys()}
         for batch_idx, (inputs, targets) in enumerate(trainloader if train else testloader):
             inputs, targets = inputs.to(device), targets.to(device)
 
-            losses, logits, activations, targets = get_losses(inputs, targets)
+            logits, activations = net(inputs)
 
-            loss_c = losses[0]
-            loss = loss_c
+            for key, metric_function in metric_functions_dict[identifier].items():
+                temp_epoch_metric_collection[key].append(metric_function(logits, activations))
+
+            loss = temp_epoch_metric_collection['loss']
 
             if train:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-            total_loss += loss.item()
-            total_loss_c += loss_c.item()
-            _, predicted = logits.max(1)
-            total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
-
-            iter_out = '{}, {}: {}; Loss: {:0.4f}, Loss_c: {:0.4f}, Acc: {:0.4f}'.format(
-                args.exp_name,
-                identifier,
-                batch_idx,
-                total_loss / (batch_idx + 1),
-                total_loss_c / (batch_idx + 1),
-                100. * correct / total,
-            )
-
-            pbar.set_description(iter_out)
+            # iter_out = '{}, {}: {}; Loss: {:0.4f}, Loss_c: {:0.4f}, Acc: {:0.4f}'.format(
+            #     args.expiment_name,
+            #     identifier,
+            #     batch_idx,
+            #     total_loss / (batch_idx + 1),
+            #     total_loss_c / (batch_idx + 1),
+            #     100. * correct / total,
+            # )
+            #
+            # pbar.set_description(iter_out)
             pbar.update()
 
-            if args.save_images and batch_idx==0:
+            if args.save_images and batch_idx == 0:
                 # Would save any images here under '{}/{}/{}_stuff.png'.format(images_filepath, identifier, epoch)
                 pass
+
+        for key, value in temp_epoch_metric_collection.items():
+            for summary_function in summary_functions_to_be_collected:
+                metric_name = '{}_{}'.format(key, summary_function.__name__)
+                metric_values_dict[identifier][key].append()
 
     return total_loss / batches, total_loss_c / batches, correct / total
 
@@ -182,7 +179,6 @@ def run_epoch(epoch, train=True):
 if __name__ == "__main__":
     with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
         for epoch in range(start_epoch, args.max_epochs):
-            scheduler.step(epoch=epoch)
 
             train_loss, train_loss_c, train_acc = run_epoch(epoch, train=True)
             test_loss, test_loss_c, test_acc = run_epoch(epoch, train=False)
@@ -216,4 +212,3 @@ if __name__ == "__main__":
 
             epoch_pbar.set_description('')
             epoch_pbar.update(1)
-

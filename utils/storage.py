@@ -7,94 +7,61 @@ import shutil
 import torch
 from collections import OrderedDict
 import scipy
-
-
-import csv
+import json
+import os
 
 
 def isfloat(x):
-    try:
-        a = float(x)
-    except ValueError:
-        return False
-    else:
-        return True
+    return isinstance(x, float)
 
 
 def isint(x):
-    try:
-        a = float(x)
-        b = int(a) if a != float('Inf') else 9999999
-    except ValueError:
-        return False
-    else:
-        return a == b
+    return isinstance(x, int)
 
 
-def read_results(filename):
+def save_metrics_dict_in_json(log_dir, metrics_file_name, metrics_dict, overwrite):
     """
-    Reads the results from the log file
-    :param filename: log filename
-    :return: results in a dict
-    """
-    results = {}
-    headers = []
-    with open(filename, 'r') as csvfile:
-        resultsreader = csv.reader(csvfile)
-        for i, row in enumerate(resultsreader):
-            if i == 0:
-                for col in row:
-                    results[col] = []
-                    headers.append(col)  # to keep track of an ordered addition of the headings
-            else:
-                for i, col in enumerate(row):
-                    results[headers[i]].append(int(float(col)) if isint(col) else float(col))
-    return results
-
-
-def save_statistics(log_dir, statistics_file_name, list_of_statistics, create=False):
-    """
-    Saves a statistics .csv file with the statistics
+    Saves a metrics .json file with the metrics
     :param log_dir: Directory of log
-    :param statistics_file_name: Name of .csv file
-    :param list_of_statistics: A list of statistics to add in the file
-    :param create: If True creates a new file, if False adds list to existing
+    :param metrics_file_name: Name of .csv file
+    :param metrics_dict: A dict of metrics to add in the file
+    :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
     """
-    if create:
-        with open("{}/{}.csv".format(log_dir, statistics_file_name), 'w+') as f:
-            writer = csv.writer(f)
-            writer.writerow(list_of_statistics)
-    else:
-        with open("{}/{}.csv".format(log_dir, statistics_file_name), 'a') as f:
-            writer = csv.writer(f)
-            writer.writerow(list_of_statistics)
+
+    if metrics_file_name.endswith('.json'):
+        metrics_file_name.replace('.json', '')
+
+    metrics_file_path = os.path.join(log_dir, metrics_file_name)
+
+    if overwrite:
+        if os.path.exists(metrics_file_path):
+            os.remove(metrics_file_path)
+
+    with open("{}.json".format(metrics_file_path), 'w+') as json_file:
+        json.dump(metrics_dict, json_file)
 
 
-def load_statistics(log_dir, statistics_file_name):
+def load_metrics_dict_from_json(log_dir, metrics_file_name):
     """
-    Loads the statistics in a dictionary.
+    Loads the metrics in a dictionary.
     :param log_dir: The directory in which the log is saved
-    :param statistics_file_name: The name of the statistics file
-    :return: A dict with the statistics
+    :param metrics_file_name: The name of the metrics file
+    :return: A dict with the metrics
     """
-    data_dict = dict()
-    with open("{}/{}.csv".format(log_dir, statistics_file_name), 'r') as f:
-        lines = f.readlines()
-        data_labels = lines[0].replace("\n", "").replace("\r", "").split(",")
-        del lines[0]
 
-        for label in data_labels:
-            data_dict[label] = []
+    if not metrics_file_name.endswith('.json'):
+        metrics_file_name = '{}.json'.format(metrics_file_name)
 
-        for line in lines:
-            data = line.replace("\n", "").replace("\r", "").split(",")
-            for key, item in zip(data_labels, data):
-                if item not in data_labels:
-                    data_dict[key].append(item)
-    return data_dict
+    metrics_file_path = os.path.join(log_dir, metrics_file_name)
+
+    with open(metrics_file_path) as json_file:
+        metrics_dict = json.load(json_file)
+
+    return metrics_dict
 
 
-def save_image_batch(filename, images, clip=True, types=('features', 'gray'), norm_means=(0.5, 0.5, 0.5), norm_stds=(0.5, 0.5, 0.5)):
+def save_image_batch(filename, images, clip=True, types=('features', 'gray'), norm_means=(0.5, 0.5, 0.5),
+                     norm_stds=(0.5, 0.5, 0.5)):
     """
     Save utility for a batch of different kinds of images. Pretty useful.
 
@@ -124,7 +91,7 @@ def save_image_batch(filename, images, clip=True, types=('features', 'gray'), no
     assert len(types) == repeats, 'must have the same number of types listed as repeats'
     n = images.size(1)
     width = int(np.round(np.sqrt(n)))
-    height = int(np.ceil(n/width))
+    height = int(np.ceil(n / width))
 
     img_w = images.size(3)
     img_h = images.size(4)
@@ -144,11 +111,11 @@ def save_image_batch(filename, images, clip=True, types=('features', 'gray'), no
 
         for i, img in enumerate(images[repeat]):
             x, y = np.unravel_index(i, dims=(width, height))
-            img = np.transpose(img.detach().cpu().numpy(), (1,2,0))
+            img = np.transpose(img.detach().cpu().numpy(), (1, 2, 0))
             if type_repeat == 'colour':
-                img[:,:,0] = img[:,:,0] * norm_stds[0] + norm_means[0]
-                img[:,:,1] = img[:,:,1] * norm_stds[1] + norm_means[1]
-                img[:,:,2] = img[:,:,2] * norm_stds[2] + norm_means[2]
+                img[:, :, 0] = img[:, :, 0] * norm_stds[0] + norm_means[0]
+                img[:, :, 1] = img[:, :, 1] * norm_stds[1] + norm_means[1]
+                img[:, :, 2] = img[:, :, 2] * norm_stds[2] + norm_means[2]
                 img = np.clip(img, 0, 1)
             elif type_repeat == 'gray':
                 img = np.clip(img, 0, 1)
@@ -156,8 +123,10 @@ def save_image_batch(filename, images, clip=True, types=('features', 'gray'), no
                 img -= minimum
                 img /= maximum
                 img = colormap(img)
-                img = img[:,:,0][:,:,0:3]
-            output_img[buffer + x * (img_w + buffer):buffer + (x) * (img_w + buffer) + img_w, actual_height * repeat + buffer + y * (img_h + buffer): actual_height * repeat + buffer + y * (img_h + buffer) + img_h, :] = img
+                img = img[:, :, 0][:, :, 0:3]
+            output_img[buffer + x * (img_w + buffer):buffer + (x) * (img_w + buffer) + img_w,
+            actual_height * repeat + buffer + y * (img_h + buffer): actual_height * repeat + buffer + y * (
+                        img_h + buffer) + img_h, :] = img
 
     scipy.misc.toimage(np.squeeze(output_img)).save(filename)
 
@@ -186,7 +155,7 @@ def save_activations(filename, inputs, activations, num_images=20, buffer=2):
     activations = [F.upsample(att, (image_size, image_size)) for att in activations]
 
     inputs_extended = torch.zeros((activations[0].size(0), *inputs.shape[1:]))
-    inputs_extended[:inputs.shape[0],:,:,:] = inputs
+    inputs_extended[:inputs.shape[0], :, :, :] = inputs
 
     output_img = np.zeros((height, width, 3))
     for i, output in enumerate(zip(inputs_extended, *activations)):
@@ -258,34 +227,31 @@ def restore_model(restore_fields, args):
         field.load_state_dict(new_state_dict)
 
 
-def build_experiment_folder(args):
+def build_experiment_folder(experiment_name, log_path, save_images):
     """
     An experiment logging folder goes along with each experiment. This builds that folder
     :param args: dictionary of arguments
     :return: filepaths for saved models, logs, and images
     """
-    experiment_name, log_path = args.exp_name, args.logs_path
-    saved_models_filepath = "{}/{}/{}".format(log_path, experiment_name.replace("%.%", "/"), "saved_models")
-    logs_filepath = "{}/{}/{}".format(log_path, experiment_name.replace("%.%", "/"), "summary_logs")
-    images_filepath = "{}/{}/{}".format(log_path, experiment_name.replace("%.%", "/"), "images")
-
-    import os
+    saved_models_filepath = os.path.join(log_path, experiment_name.replace("%.%", "/"), "saved_models")
+    logs_filepath = os.path.join(log_path, experiment_name.replace("%.%", "/"), "summary_logs")
+    images_filepath = os.path.join(log_path, experiment_name.replace("%.%", "/"), "images")
 
     if not os.path.exists(logs_filepath):
         os.makedirs(logs_filepath)
+
     if not os.path.exists(saved_models_filepath):
         os.makedirs(saved_models_filepath)
+
     if not os.path.exists(images_filepath):
         os.makedirs(images_filepath)
-    if args.save_images:
+
+    if save_images:
         if not os.path.exists(images_filepath + '/train'):
             os.makedirs(images_filepath + '/train')
         if not os.path.exists(images_filepath + '/test'):
             os.makedirs(images_filepath + '/test')
 
-    args.saved_models_filepath = saved_models_filepath
-    args.logs_filepath = logs_filepath
-    args.images_filepath = images_filepath
     return saved_models_filepath, logs_filepath, images_filepath
 
 
@@ -317,22 +283,24 @@ def get_start_epoch(args):
     return start_epoch, latest_loadpath
 
 
-def get_best_epoch(args):
+def get_best_performing_epoch_on_target_metric(metrics_dict, target_metric, ranking_method=np.argmax):
     """
     utility for finding best epoch thus far
-    :param args: args parsed from input
-    :return: best epoch, and what the acc was
+    :param: metrics_dict: A dictionary containing the collected metrics from which to extract the best perf. model epoch
+    target_metric:
+    ranking_method:
+    :return: best epoch, and what the best target metric value was
     """
-    best_epoch = -1
-    # Calculate the best loss from the results statistics if restarting
-    best_test_acc = 0.0
-    if args.resume:
-        print("Checking {}/{}.csv".format(args.logs_filepath, "result_summary_statistics"))
-        results = read_results("{}/{}.csv".format(args.logs_filepath, "result_summary_statistics"))
-        maxi = np.argmax(results['test_acc'])
-        best_test_acc = results['test_acc'][maxi]
-        best_epoch = results['epoch'][maxi]
-    return best_epoch, best_test_acc
+    best_model_epoch = 0
+    best_target_metric = None
+
+    if target_metric in metrics_dict:
+        if len(metrics_dict[target_metric]) != 0:
+            best_epoch_idx = ranking_method(metrics_dict[target_metric])
+            best_model_epoch, best_target_metric = metrics_dict['epoch'][best_epoch_idx],\
+                                                   metrics_dict[target_metric][best_epoch_idx]
+
+    return best_model_epoch, best_target_metric
 
 
 def print_network_stats(net):
@@ -351,4 +319,4 @@ def print_network_stats(net):
             trainable_params_count += 1
             trainable_weights_count += weight_count
 
-    print('{} paramaters and {} weights are trainable'.format(trainable_params_count, trainable_weights_count))
+    print('{} parameters and {} weights are trainable'.format(trainable_params_count, trainable_weights_count))
