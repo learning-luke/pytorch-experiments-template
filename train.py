@@ -66,23 +66,32 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
 start_epoch, latest_loadpath = get_start_epoch(args)
 args.latest_loadpath = latest_loadpath
 
-compute_accuracy = lambda logits, targets: torch.mean(torch.logits == targets)
+def compute_accuracy(logits, targets):
+    acc = (targets.argmax(-1).cpu() == logits.cpu().argmax(-1)).float().detach().cpu().numpy()
+    return np.mean(acc)
+
+
 cross_entropy = nn.CrossEntropyLoss()
 
-differentiable_loss_a = lambda logits, targets: cross_entropy.forward(input=logits, target=targets)
-differentiable_loss_b = lambda logits, targets: cross_entropy.forward(input=logits, target=targets)
-mixed_loss = lambda logits, targets: differentiable_loss_a(logits, targets) + differentiable_loss_b(logits, targets)
+differentiable_loss_a = lambda logits, targets: cross_entropy.forward(input=logits,
+                                                                      target=targets).detach().cpu().numpy()
 
-metric_functions_dict = {'train': {'loss': nn.CrossEntropyLoss, 'acc': compute_accuracy},
-                         'val': {'loss': nn.CrossEntropyLoss, 'acc': compute_accuracy},
-                         'test': {'loss': nn.CrossEntropyLoss, 'acc': compute_accuracy}}
+differentiable_loss_b = lambda logits, targets: cross_entropy.forward(input=logits,
+                                                                      target=targets).detach().cpu().numpy()
+
+mixed_loss = lambda logits, targets: differentiable_loss_a(logits, targets) +\
+                                     differentiable_loss_b(logits, targets)
+
+metric_functions_dict = {'train': {'loss': mixed_loss, 'acc': compute_accuracy},
+                         'val': {'loss': mixed_loss, 'acc': compute_accuracy},
+                         'test': {'loss': mixed_loss, 'acc': compute_accuracy}}
 
 metric_values_dict = {'epoch': [],
                       'train': {},
                       'val': {},
                       'test': {}}
 
-summary_functions_to_be_collected_dict = {np.mean, np.std}
+summary_functions_to_be_collected_dict = {'mean': np.mean, 'std': np.std}
 
 if not args.resume:
     # These are the currently tracked stats. I'm sure there are cleaner ways of doing this though.
@@ -96,9 +105,10 @@ num_classes = 10 if args.dataset != 'Cifar-100' else 100
 net = ModelSelector(in_shape=in_shape, num_classes=num_classes).select(args.model, args)
 
 print('Network summary:')
-summary(net, (in_shape[2], in_shape[0], in_shape[1]), args.batch_size)
 
 net = net.to(device)
+
+summary(net, (in_shape[2], in_shape[0], in_shape[1]), args.batch_size)
 
 ######################################################################################################### Optimisation
 params = net.parameters()
@@ -138,59 +148,64 @@ def run_epoch(epoch, train=True):
     with tqdm.tqdm(initial=0, total=len(trainloader)) as pbar:
         temp_epoch_metric_collection = {key: [] for key in metric_functions_dict[identifier].keys()}
         for batch_idx, (inputs, targets) in enumerate(trainloader if train else testloader):
+
+            iter_meric_dict = dict()
+
             inputs, targets = inputs.to(device), targets.to(device)
 
             logits, activations = net(inputs)
 
             for key, metric_function in metric_functions_dict[identifier].items():
-                temp_epoch_metric_collection[key].append(metric_function(logits, activations))
+                temp_epoch_metric_collection[key].append(metric_function(logits, targets))
+                iter_meric_dict[key] = metric_function(logits, targets)
 
-            loss = temp_epoch_metric_collection['loss']
+            loss = cross_entropy.forward(input=logits, target=targets)
 
             if train:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-            # iter_out = '{}, {}: {}; Loss: {:0.4f}, Loss_c: {:0.4f}, Acc: {:0.4f}'.format(
-            #     args.expiment_name,
-            #     identifier,
-            #     batch_idx,
-            #     total_loss / (batch_idx + 1),
-            #     total_loss_c / (batch_idx + 1),
-            #     100. * correct / total,
-            # )
-            #
-            # pbar.set_description(iter_out)
+            iter_out = '{}, {}: {}; {}'.format(
+                args.experiment_name,
+                identifier,
+                batch_idx,
+                '. '.join(['{}: {:0.4f}'.format(key, value) for key, value in iter_meric_dict.items()]),
+            )
+
+            pbar.set_description(iter_out)
             pbar.update()
 
             if args.save_images and batch_idx == 0:
                 # Would save any images here under '{}/{}/{}_stuff.png'.format(images_filepath, identifier, epoch)
                 pass
 
-        for key, value in temp_epoch_metric_collection.items():
-            for summary_function in summary_functions_to_be_collected:
-                metric_name = '{}_{}'.format(key, summary_function.__name__)
-                metric_values_dict[identifier][key].append()
+        end_of_epoch_result_dict = dict()
 
-    return total_loss / batches, total_loss_c / batches, correct / total
+        for metric_key, metric_value in temp_epoch_metric_collection.items():
+            for summary_key, summary_function in summary_functions_to_be_collected_dict.items():
+                metric_name = '{}_{}'.format(metric_key, summary_key)
+
+                if metric_name not in metric_values_dict:
+                    metric_values_dict[identifier][metric_name] = []
+
+                metric_values_dict[identifier][metric_name].append(str(summary_function(metric_value)))
+                end_of_epoch_result_dict[metric_name] = summary_function(metric_value)
+    print(epoch, end_of_epoch_result_dict)
+    return metric_values_dict
 
 
 if __name__ == "__main__":
     with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
         for epoch in range(start_epoch, args.max_epochs):
 
-            train_loss, train_loss_c, train_acc = run_epoch(epoch, train=True)
-            test_loss, test_loss_c, test_acc = run_epoch(epoch, train=False)
+            train_metrics_dict = run_epoch(epoch, train=True)
+            test_metrics_dict = run_epoch(epoch, train=False)
 
-            save_statistics(logs_filepath, "result_summary_statistics",
-                            [epoch,
-                             train_loss,
-                             test_loss,
-                             train_loss_c,
-                             test_loss_c,
-                             train_acc,
-                             test_acc])
+            save_metrics_dict_in_json(logs_filepath, "train_metrics.json",
+                            metrics_dict=train_metrics_dict, overwrite=False)
+            save_metrics_dict_in_json(logs_filepath, "test_metrics.json",
+                                      metrics_dict=test_metrics_dict, overwrite=False)
 
             ############################################################################################## Saving models
             if args.save:
