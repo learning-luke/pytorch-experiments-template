@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
 from utils.storage import build_experiment_folder, save_statistics, save_checkpoint, restore_model, \
     get_start_epoch, get_best_epoch, save_activations, save_image_batch, print_network_stats
 from models.model_selector import ModelSelector
-from utils.datasets import load_dataset
+from utils.data_loaders import load_dataset
 from utils.administration import parse_args
 import random
 from torchvision.utils import save_image
@@ -33,7 +33,7 @@ if device == 'cuda':
     torch.backends.cudnn.deterministic = True
 
 ######################################################################################################### Data
-trainloader, testloader, in_shape = load_dataset(args)
+trainloader, testloader, in_shape = load_dataset(args.dataset, args.root, args.batch_size, args.workers)
 n_train_batches = len(trainloader)
 n_train_images = len(trainloader.dataset)
 n_test_batches = len(testloader)
@@ -86,9 +86,8 @@ net = ModelSelector(in_shape=in_shape,
 print_network_stats(net)
 
 print('Network summary:')
-summary(net, (in_shape[2], in_shape[0], in_shape[1]), args.batch_size)
-
 net = net.to(device)
+summary(net, in_shape, args.batch_size)
 
 ######################################################################################################### Optimisation
 params = net.parameters()
