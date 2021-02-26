@@ -1,11 +1,12 @@
 import os
+import random
+import numpy as np
 import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from collections import namedtuple
 
 ImSize = namedtuple('ImSize', ['channels', 'width', 'height'])
-
 
 class MNISTLoader:
     def __init__(self):
@@ -138,6 +139,23 @@ class ImageNetLoader:
 
         return train_set, val_set
 
+class SimCLRTransform(object):
+    """
+    credit: https://github.com/sthalles/SimCLR/
+    """
+    def __init__(self, size, s=1, n_views=2):
+        color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)
+        base_transform = transforms.Compose([transforms.RandomResizedCrop(size=size),
+                                              transforms.RandomHorizontalFlip(),
+                                              transforms.RandomApply([color_jitter], p=0.8),
+                                              transforms.RandomGrayscale(p=0.2),
+                                              transforms.GaussianBlur(kernel_size=int(0.1 * size)),
+                                              transforms.ToTensor()])
+        self.base_transform = base_transform
+        self.n_views = n_views
+
+    def __call__(self, x):
+        return [self.base_transform(x) for i in range(self.n_views)]
 
 def load_dataset(dataset, data_loc, batch_size, workers):
     if dataset == 'mnist':
@@ -154,6 +172,10 @@ def load_dataset(dataset, data_loc, batch_size, workers):
     # custom augmentations can go here if you want them to apply to any dset
     # e.g. dataloader.transform_train.append(Cutout(...))
 
+    ### e.g. ADD SIMCLR
+    dataloader.transform_train = SimCLRTransform(size=dataloader.im_size.width)
+    ### 
+
     train_set, val_set = dataloader.get_data(data_loc)
 
     train_loader = torch.utils.data.DataLoader(
@@ -166,4 +188,3 @@ def load_dataset(dataset, data_loc, batch_size, workers):
         num_workers=workers, pin_memory=True)
 
     return train_loader, val_loader, dataloader.im_size
-
