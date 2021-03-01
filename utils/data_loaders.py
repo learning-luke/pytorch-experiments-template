@@ -1,10 +1,10 @@
 import os
-import random
-import numpy as np
 import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from collections import namedtuple
+from utils.augmentors import SimCLRTransform
+from utils.cinic_utils import enlarge_cinic_10, download_cinic
 
 ImSize = namedtuple('ImSize', ['channels', 'width', 'height'])
 
@@ -24,8 +24,8 @@ class MNISTLoader:
             normalize,
         ])
 
-    def get_data(self, data_loc):
-        train_set = datasets.MNIST(data_loc, train=True, download=True,
+    def get_data(self, data_loc, download=False):
+        train_set = datasets.MNIST(data_loc, train=True, download=download,
                                    transform=self.transform_train)
         val_set = datasets.MNIST(data_loc, train=False,
                                  transform=self.transform_validate)
@@ -49,7 +49,12 @@ class CINIC10Loader:
             normalize,
         ])
 
-    def get_data(self, data_loc):
+    def get_data(self, data_loc, download=False):
+        if download:
+            download_cinic(root_to_cinic.replace('-enlarged',''))
+            if '-enlarged' in which_set:
+                enlarge_cinic_10(root_to_cinic.replace('-enlarged',''))
+
         traindir = os.path.join(data_loc, 'train')
         valdir = os.path.join(data_loc, 'test')
 
@@ -76,11 +81,11 @@ class CIFAR10Loader:
             normalize,
         ])
 
-    def get_data(self, data_loc):
+    def get_data(self, data_loc, download=False):
         train_set = datasets.CIFAR10(root=data_loc,
-                                     train=True, download=False, transform=self.transform_train)
+                                     train=True, download=download, transform=self.transform_train)
         val_set = datasets.CIFAR10(root=data_loc,
-                                   train=False, download=False, transform=self.transform_validate)
+                                   train=False, download=download, transform=self.transform_validate)
 
         return train_set, val_set
 
@@ -103,11 +108,11 @@ class CIFAR100Loader:
             normalize,
         ])
 
-    def get_data(self, data_loc):
+    def get_data(self, data_loc, download=False):
         train_set = datasets.CIFAR100(root=data_loc,
-                                      train=True, download=True, transform=self.transform_train)
+                                      train=True, download=download, transform=self.transform_train)
         val_set = datasets.CIFAR100(root=data_loc,
-                                    train=False, download=True, transform=self.transform_validate)
+                                    train=False, download=download, transform=self.transform_validate)
         return train_set, val_set
 
 
@@ -130,7 +135,7 @@ class ImageNetLoader:
             normalize,
         ])
 
-    def get_data(self, data_loc):
+    def get_data(self, data_loc, download=False):
         traindir = os.path.join(data_loc, 'train')
         valdir = os.path.join(data_loc, 'val')
 
@@ -139,44 +144,23 @@ class ImageNetLoader:
 
         return train_set, val_set
 
-class SimCLRTransform(object):
-    """
-    credit: https://github.com/sthalles/SimCLR/
-    """
-    def __init__(self, size, s=1, n_views=2):
-        color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)
-        base_transform = transforms.Compose([transforms.RandomResizedCrop(size=size),
-                                              transforms.RandomHorizontalFlip(),
-                                              transforms.RandomApply([color_jitter], p=0.8),
-                                              transforms.RandomGrayscale(p=0.2),
-                                              transforms.GaussianBlur(kernel_size=int(0.1 * size)),
-                                              transforms.ToTensor()])
-        self.base_transform = base_transform
-        self.n_views = n_views
+def load_dataset(dataset, data_loc, batch_size, workers, download=False):
 
-    def __call__(self, x):
-        return [self.base_transform(x) for i in range(self.n_views)]
+    datasets = {
+        'mnist': MNISTLoader,
+        'cinic10': CINIC10Loader,
+        'cifar10': CIFAR10Loader,
+        'cifar100': CIFAR100Loader,
+        'imagenet': ImageNetLoader,
+    }
 
-def load_dataset(dataset, data_loc, batch_size, workers):
-    if dataset == 'mnist':
-        dataloader = MNISTLoader()
-    elif dataset == 'cinic10':
-        dataloader = CINIC10Loader()
-    elif dataset == 'cifar10':
-        dataloader = CIFAR10Loader()
-    elif dataset == 'cifar100':
-        dataloader = CIFAR100Loader()
-    elif dataset == 'imagenet':
-        dataloader = ImageNetLoader()
-
-    # custom augmentations can go here if you want them to apply to any dset
-    # e.g. dataloader.transform_train.append(Cutout(...))
+    dataloader = datasets[dataset.lower()]()
 
     ### e.g. ADD SIMCLR
     dataloader.transform_train = SimCLRTransform(size=dataloader.im_size.width)
     ### 
 
-    train_set, val_set = dataloader.get_data(data_loc)
+    train_set, val_set = dataloader.get_data(data_loc, download)
 
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=batch_size, shuffle=True,
