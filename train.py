@@ -33,7 +33,7 @@ if device == 'cuda':
     torch.backends.cudnn.deterministic = True
 
 ######################################################################################################### Data
-trainloader, testloader, in_shape = load_dataset(args.dataset, args.root, args.batch_size, args.workers)
+trainloader, testloader, in_shape = load_dataset(dataset=args.dataset, root=args.root, batch_size=args.batch_size, num_dataloading_workers=args.num_dataloading_workers)
 n_train_batches = len(trainloader)
 n_train_images = len(trainloader.dataset)
 n_test_batches = len(testloader)
@@ -87,7 +87,7 @@ print_network_stats(net)
 
 print('Network summary:')
 net = net.to(device)
-summary(net, in_shape, args.batch_size)
+summary(net=net, in_shape=in_shape, batch_size=args.batch_size)
 
 ######################################################################################################### Optimisation
 params = net.parameters()
@@ -215,4 +215,3 @@ if __name__ == "__main__":
 
             epoch_pbar.set_description('')
             epoch_pbar.update(1)
-
