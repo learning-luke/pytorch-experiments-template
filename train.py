@@ -20,7 +20,6 @@ from utils.torchsummary import summary
 import glob
 import tarfile
 
-
 args = parse_args()
 
 ######################################################################################################### Seeding
@@ -67,6 +66,7 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
 start_epoch, latest_loadpath = get_start_epoch(args)
 args.latest_loadpath = latest_loadpath
 
+
 def compute_accuracy(logits, targets):
     acc = (targets.argmax(-1).cpu() == logits.cpu().argmax(-1)).float().detach().cpu().numpy()
     return np.mean(acc)
@@ -80,7 +80,7 @@ differentiable_loss_a = lambda logits, targets: cross_entropy.forward(input=logi
 differentiable_loss_b = lambda logits, targets: cross_entropy.forward(input=logits,
                                                                       target=targets).detach().cpu().numpy()
 
-mixed_loss = lambda logits, targets: differentiable_loss_a(logits, targets) +\
+mixed_loss = lambda logits, targets: differentiable_loss_a(logits, targets) + \
                                      differentiable_loss_b(logits, targets)
 
 metric_functions_dict = {'train': {'loss': mixed_loss, 'acc': compute_accuracy},
@@ -135,12 +135,15 @@ restore_fields = {
 if args.resume:
     restore_model(restore_fields, args)
 
+
 ######################################################################################################### Training
 
-def train_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name):
+def train_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name, net):
     iter_meric_dict = dict()
 
     inputs, targets = x.to(device), y.to(device)
+
+    net = net.train()
 
     logits, activations = net(inputs)
 
@@ -164,10 +167,12 @@ def train_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name):
     return iter_out, temp_epoch_metric_collection
 
 
-def eval_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name):
+def eval_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name, net):
     iter_meric_dict = dict()
 
     x, y = x.to(device), y.to(device)
+
+    net = net.eval()
 
     logits, activations = net(x)
 
@@ -184,14 +189,8 @@ def eval_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name):
 
     return iter_out, temp_epoch_metric_collection
 
-def run_epoch(epoch, train=True):
-    global net
 
-    if train:
-        net.train()
-    else:
-        net.eval()
-
+def run_epoch(epoch, net, train=True):
     identifier = 'train' if train else 'test'
     with tqdm.tqdm(initial=0, total=len(trainloader)) as pbar:
         temp_epoch_metric_collection = {key: [] for key in metric_functions_dict[identifier].keys()}
@@ -199,12 +198,12 @@ def run_epoch(epoch, train=True):
 
             if identifier is 'train':
                 iter_out, temp_epoch_metric_collection = train_iter(x=inputs, y=targets, batch_idx=batch_idx,
-                                                            temp_epoch_metric_collection=temp_epoch_metric_collection,
-                                                            set_name=identifier)
+                                                                    temp_epoch_metric_collection=temp_epoch_metric_collection,
+                                                                    set_name=identifier, net=net)
             elif identifier is 'test':
                 iter_out, temp_epoch_metric_collection = eval_iter(x=inputs, y=targets, batch_idx=batch_idx,
-                                                                    temp_epoch_metric_collection=temp_epoch_metric_collection,
-                                                                    set_name=identifier)
+                                                                   temp_epoch_metric_collection=temp_epoch_metric_collection,
+                                                                   set_name=identifier, net=net)
 
             pbar.set_description(iter_out)
             pbar.update()
@@ -232,11 +231,11 @@ if __name__ == "__main__":
     with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
         for epoch in range(start_epoch, args.max_epochs):
 
-            train_metrics_dict = run_epoch(epoch, train=True)
-            test_metrics_dict = run_epoch(epoch, train=False)
+            train_metrics_dict = run_epoch(epoch, net=net, train=True)
+            test_metrics_dict = run_epoch(epoch, net=net, train=False)
 
             save_metrics_dict_in_json(logs_filepath, "train_metrics.json",
-                            metrics_dict=train_metrics_dict, overwrite=False)
+                                      metrics_dict=train_metrics_dict, overwrite=False)
             save_metrics_dict_in_json(logs_filepath, "test_metrics.json",
                                       metrics_dict=test_metrics_dict, overwrite=False)
 
