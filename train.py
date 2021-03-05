@@ -17,6 +17,9 @@ from utils.datasets import load_dataset
 from utils.administration import parse_args
 import random
 from utils.torchsummary import summary
+import glob
+import tarfile
+
 
 args = parse_args()
 
@@ -50,8 +53,6 @@ saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(
                                                                                 save_images=args.save_images)
 
 # Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your many experiments was actually quite good but you forgot what you did
-import glob
-import tarfile
 
 snapshot_filename = '{}/snapshot.tar.gz'.format(saved_models_filepath)
 filetypes_to_include = ['.py']
@@ -101,7 +102,7 @@ else:
     metrics_dict = load_metrics_dict_from_json(log_dir=logs_filepath, metrics_file_name='metrics_summaries.json')
 
 ######################################################################################################### Model
-num_classes = 10 if args.dataset != 'Cifar-100' else 100
+num_classes = 10 if args.dataset != 'cifar-100' else 100
 net = ModelSelector(in_shape=in_shape, num_classes=num_classes).select(args.model, args)
 
 print('Network summary:')
@@ -136,6 +137,53 @@ if args.resume:
 
 ######################################################################################################### Training
 
+def train_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name):
+    iter_meric_dict = dict()
+
+    inputs, targets = x.to(device), y.to(device)
+
+    logits, activations = net(inputs)
+
+    for key, metric_function in metric_functions_dict['train'].items():
+        temp_epoch_metric_collection[key].append(metric_function(logits, targets))
+        iter_meric_dict[key] = metric_function(logits, targets)
+
+    loss = cross_entropy.forward(input=logits, target=targets)
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    iter_out = '{}, {}: {}; {}'.format(
+        args.experiment_name,
+        set_name,
+        batch_idx,
+        '. '.join(['{}: {:0.4f}'.format(key, value) for key, value in iter_meric_dict.items()]),
+    )
+
+    return iter_out, temp_epoch_metric_collection
+
+
+def eval_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name):
+    iter_meric_dict = dict()
+
+    x, y = x.to(device), y.to(device)
+
+    logits, activations = net(x)
+
+    for key, metric_function in metric_functions_dict['train'].items():
+        temp_epoch_metric_collection[key].append(metric_function(logits, y))
+        iter_meric_dict[key] = metric_function(logits, y)
+
+    iter_out = '{}, {}: {}; {}'.format(
+        args.experiment_name,
+        set_name,
+        batch_idx,
+        '. '.join(['{}: {:0.4f}'.format(key, value) for key, value in iter_meric_dict.items()]),
+    )
+
+    return iter_out, temp_epoch_metric_collection
+
 def run_epoch(epoch, train=True):
     global net
 
@@ -149,29 +197,14 @@ def run_epoch(epoch, train=True):
         temp_epoch_metric_collection = {key: [] for key in metric_functions_dict[identifier].keys()}
         for batch_idx, (inputs, targets) in enumerate(trainloader if train else testloader):
 
-            iter_meric_dict = dict()
-
-            inputs, targets = inputs.to(device), targets.to(device)
-
-            logits, activations = net(inputs)
-
-            for key, metric_function in metric_functions_dict[identifier].items():
-                temp_epoch_metric_collection[key].append(metric_function(logits, targets))
-                iter_meric_dict[key] = metric_function(logits, targets)
-
-            loss = cross_entropy.forward(input=logits, target=targets)
-
-            if train:
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-            iter_out = '{}, {}: {}; {}'.format(
-                args.experiment_name,
-                identifier,
-                batch_idx,
-                '. '.join(['{}: {:0.4f}'.format(key, value) for key, value in iter_meric_dict.items()]),
-            )
+            if identifier is 'train':
+                iter_out, temp_epoch_metric_collection = train_iter(x=inputs, y=targets, batch_idx=batch_idx,
+                                                            temp_epoch_metric_collection=temp_epoch_metric_collection,
+                                                            set_name=identifier)
+            elif identifier is 'test':
+                iter_out, temp_epoch_metric_collection = eval_iter(x=inputs, y=targets, batch_idx=batch_idx,
+                                                                    temp_epoch_metric_collection=temp_epoch_metric_collection,
+                                                                    set_name=identifier)
 
             pbar.set_description(iter_out)
             pbar.update()

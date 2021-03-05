@@ -9,8 +9,8 @@ def parse_args():
     """
     parser = argparse.ArgumentParser()
     # data I/O
-    parser.add_argument('-data', '--dataset', type=str, default='Cifar-10',
-                        help='Which dataset to use: Cifar-10, Cifar-100, Cinic-10, Cinic-10-enlarged, MNIST, Fashion-MNIST')
+    parser.add_argument('-data', '--dataset', type=str, default='cifar-10',
+                        help='Which dataset to use: cifar-10, cifar-100, Cinic-10, Cinic-10-enlarged, MNIST, Fashion-MNIST')
     parser.add_argument('-root', '--root', type=str, default='../data',
                         help='Which dataset to use')
     parser.add_argument('-norm', '--dataset_norm_type', type=str, default='standardize',

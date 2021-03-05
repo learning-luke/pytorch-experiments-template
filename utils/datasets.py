@@ -24,7 +24,7 @@ class SubsetSequentialSampler(Sampler):
 
 class CustomDataset(Dataset):
     def __init__(self,
-                 which_set='Cifar-10',
+                 which_set='cifar-10',
                  root=None,
                  train=True,
                  download=True,
@@ -100,8 +100,8 @@ class CustomDataset(Dataset):
                                                  download=download,
                                                  transform=transform)
 
-        elif which_set == 'Cifar-100':
-            self.dataset = datasets.CIFAR100(root='../data/Cifar-100' if root is None else root,
+        elif which_set == 'cifar-100':
+            self.dataset = datasets.CIFAR100(root='../data/cifar-100' if root is None else root,
                                              train=train, download=download,
                                              transform=transform)
         elif 'Cinic-10' in which_set:
@@ -113,7 +113,7 @@ class CustomDataset(Dataset):
             self.dataset = datasets.ImageFolder(root=('../data/Cinic-10' if root is None else root) + ('/train' if train else '/test'),
                                                 transform=transform)
         else:
-            self.dataset = datasets.CIFAR10(root='../data/Cifar-10' if root is None else root,
+            self.dataset = datasets.CIFAR10(root='../data/cifar-10' if root is None else root,
                                             train=train, download=download,
                                             transform=transform)
 
@@ -135,7 +135,7 @@ class CustomDataset(Dataset):
 
 def load_dataset(args):
     print('==> Preparing data..')
-    assert args.dataset in ['Cifar-10', 'Cifar-100', 'Cinic-10', 'Cinic-10-enlarged', 'Fashion-MNIST', 'MNIST'], \
+    assert args.dataset in ['cifar-10', 'cifar-100', 'Cinic-10', 'Cinic-10-enlarged', 'Fashion-MNIST', 'MNIST'], \
         "dataset {} not supported".format(args.dataset)
     in_shape = (28, 28, 1) if 'MNIST' in args.dataset else (32, 32, 3)  # Woohoo, great variety here.
 
@@ -143,9 +143,9 @@ def load_dataset(args):
     root = None if args.root.lower() == 'default' else '{}/{}'.format(data_dir, args.dataset)
 
     num_classes = 10
-    if args.dataset == 'Cifar-100':
+    if args.dataset == 'cifar-100':
         num_classes = 100
-    elif args.dataset == 'Cifar-100-20':
+    elif args.dataset == 'cifar-100-20':
         num_classes = 20
 
     train_dataset = CustomDataset(which_set=args.dataset,
