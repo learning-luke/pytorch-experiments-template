@@ -10,8 +10,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-from utils.storage import build_experiment_folder, save_metrics_dict_in_json, save_checkpoint, restore_model, \
-    get_start_epoch, get_best_performing_epoch_on_target_metric, load_metrics_dict_from_json
+from utils.storage import build_experiment_folder, save_metrics_dict_in_pt, save_checkpoint, restore_model, \
+    get_start_epoch, get_best_performing_epoch_on_target_metric, load_metrics_dict_from_pt
 from models.model_selector import ModelSelector
 from utils.datasets import load_dataset
 from utils.administration import parse_args
@@ -68,7 +68,7 @@ args.latest_loadpath = latest_loadpath
 
 
 def compute_accuracy(logits, targets):
-    acc = (targets.argmax(-1).cpu() == logits.cpu().argmax(-1)).float().detach().cpu().numpy()
+    acc = (targets.cpu() == logits.cpu().argmax(-1)).float().detach().cpu().numpy()
     return np.mean(acc)
 
 
@@ -96,10 +96,10 @@ summary_functions_to_be_collected_dict = {'mean': np.mean, 'std': np.std}
 
 if not args.resume:
     # These are the currently tracked stats. I'm sure there are cleaner ways of doing this though.
-    save_metrics_dict_in_json(log_dir=logs_filepath, metrics_file_name='metrics_summaries.json',
+    save_metrics_dict_in_pt(log_dir=logs_filepath, metrics_file_name='metrics_summaries.pt',
                               metrics_dict=metric_values_dict, overwrite=True)
 else:
-    metrics_dict = load_metrics_dict_from_json(log_dir=logs_filepath, metrics_file_name='metrics_summaries.json')
+    metrics_dict = load_metrics_dict_from_pt(log_dir=logs_filepath, metrics_file_name='metrics_summaries.pt')
 
 ######################################################################################################### Model
 num_classes = 10 if args.dataset != 'cifar-100' else 100
@@ -234,9 +234,9 @@ if __name__ == "__main__":
             train_metrics_dict = run_epoch(epoch, net=net, train=True)
             test_metrics_dict = run_epoch(epoch, net=net, train=False)
 
-            save_metrics_dict_in_json(logs_filepath, "train_metrics.json",
+            save_metrics_dict_in_pt(logs_filepath, "train_metrics.pt",
                                       metrics_dict=train_metrics_dict, overwrite=False)
-            save_metrics_dict_in_json(logs_filepath, "test_metrics.json",
+            save_metrics_dict_in_pt(logs_filepath, "test_metrics.pt",
                                       metrics_dict=test_metrics_dict, overwrite=False)
 
             ############################################################################################## Saving models

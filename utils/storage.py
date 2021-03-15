@@ -19,17 +19,16 @@ def isint(x):
     return isinstance(x, int)
 
 
-def save_metrics_dict_in_json(log_dir, metrics_file_name, metrics_dict, overwrite):
+def save_metrics_dict_in_pt(log_dir, metrics_file_name, metrics_dict, overwrite):
     """
-    Saves a metrics .json file with the metrics
+    Saves a metrics .pt file with the metrics
     :param log_dir: Directory of log
     :param metrics_file_name: Name of .csv file
     :param metrics_dict: A dict of metrics to add in the file
     :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
     """
-
-    if metrics_file_name.endswith('.json'):
-        metrics_file_name.replace('.json', '')
+    if not metrics_file_name.endswith('.pt'):
+        metrics_file_name = '{}.pt'.format(metrics_file_name)
 
     metrics_file_path = os.path.join(log_dir, metrics_file_name)
 
@@ -37,11 +36,10 @@ def save_metrics_dict_in_json(log_dir, metrics_file_name, metrics_dict, overwrit
         if os.path.exists(metrics_file_path):
             os.remove(metrics_file_path)
 
-    with open("{}.json".format(metrics_file_path), 'w+') as json_file:
-        json.dump(metrics_dict, json_file)
+    torch.save(metrics_dict, metrics_file_path)
 
 
-def load_metrics_dict_from_json(log_dir, metrics_file_name):
+def load_metrics_dict_from_pt(log_dir, metrics_file_name):
     """
     Loads the metrics in a dictionary.
     :param log_dir: The directory in which the log is saved
@@ -49,16 +47,14 @@ def load_metrics_dict_from_json(log_dir, metrics_file_name):
     :return: A dict with the metrics
     """
 
-    if not metrics_file_name.endswith('.json'):
-        metrics_file_name = '{}.json'.format(metrics_file_name)
+    if not metrics_file_name.endswith('.pt'):
+        metrics_file_name = '{}.pt'.format(metrics_file_name)
 
     metrics_file_path = os.path.join(log_dir, metrics_file_name)
 
-    with open(metrics_file_path) as json_file:
-        metrics_dict = json.load(json_file)
+    metrics_dict = torch.load(metrics_file_path)
 
     return metrics_dict
-
 
 def save_image_batch(filename, images, clip=True, types=('features', 'gray'), norm_means=(0.5, 0.5, 0.5),
                      norm_stds=(0.5, 0.5, 0.5)):
@@ -126,7 +122,7 @@ def save_image_batch(filename, images, clip=True, types=('features', 'gray'), no
                 img = img[:, :, 0][:, :, 0:3]
             output_img[buffer + x * (img_w + buffer):buffer + (x) * (img_w + buffer) + img_w,
             actual_height * repeat + buffer + y * (img_h + buffer): actual_height * repeat + buffer + y * (
-                        img_h + buffer) + img_h, :] = img
+                    img_h + buffer) + img_h, :] = img
 
     scipy.misc.toimage(np.squeeze(output_img)).save(filename)
 
@@ -297,7 +293,7 @@ def get_best_performing_epoch_on_target_metric(metrics_dict, target_metric, rank
     if target_metric in metrics_dict:
         if len(metrics_dict[target_metric]) != 0:
             best_epoch_idx = ranking_method(metrics_dict[target_metric])
-            best_model_epoch, best_target_metric = metrics_dict['epoch'][best_epoch_idx],\
+            best_model_epoch, best_target_metric = metrics_dict['epoch'][best_epoch_idx], \
                                                    metrics_dict[target_metric][best_epoch_idx]
 
     return best_model_epoch, best_target_metric
