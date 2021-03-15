@@ -1,28 +1,80 @@
-'''
-Adapted from: https://github.com/kuangliu/pytorch-cifar/blob/master/main.py,
-and my own work
-'''
+import argparse
+import json
 import os
 import numpy as np
 import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torchvision.utils import save_image
 import torch.backends.cudnn as cudnn
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-from utils.storage import build_experiment_folder, save_metrics_dict_in_pt, save_checkpoint, restore_model, \
-    get_start_epoch, get_best_performing_epoch_on_target_metric, load_metrics_dict_from_pt
-from models.model_selector import ModelSelector
-from utils.datasets import load_dataset
-from utils.administration import parse_args
+from utils.storage import build_experiment_folder, save_checkpoint, restore_model
+from utils.data_loaders import load_dataset
 import random
-from utils.torchsummary import summary
 import glob
 import tarfile
+from models.wresnet import WideResNet
+from utils.torchsummary import summary
+from utils.metric_tracking import MetricTracker, compute_accuracy
+
+def parse_args(verbose=True):
+    """
+    Argument parser
+    :return: parsed arguments
+    """
+    parser = argparse.ArgumentParser()
+    # data and I/O
+    parser.add_argument('-data', '--dataset', type=str, default='cifar10')
+    parser.add_argument('-loc', '--data_loc', type=str, default='../data/Cifar-10')
+    parser.add_argument('-batch', '--batch_size', type=int, default=20)
+    parser.add_argument('-numw', '--num_workers', type=int, default=1)
+    parser.add_argument('-tbatch', '--test_batch_size', type=int, default=100)
+    parser.add_argument('-x', '--max_epochs', type=int, default=200)
+    parser.add_argument('-s', '--seed', type=int, default=0)
+    parser.add_argument('-resume', '--resume', dest='resume', action='store_true')
+    parser.set_defaults(resume=False)
+    parser.add_argument('-dist', '--distributed', dest='distributed', action='store_true')
+    parser.set_defaults(distributed=False)
+    parser.add_argument('-test', '--test', dest='test', action='store_true')
+    parser.set_defaults(distributed=False)
+
+    # logging
+    parser.add_argument('-en', '--exp_name', type=str, default='dev')
+    parser.add_argument('-o', '--logs_path', type=str, default='log')
+    parser.add_argument('-save', '--save', dest='save', action='store_true')
+    parser.add_argument('-nosave', '--nosave', dest='save', action='store_false')
+    parser.set_defaults(save=True)
+
+    # model
+    parser.add_argument('-model', '--model', type=str, default='wresnet')
+    parser.add_argument('-dep', '--resdepth', type=int, default=28)
+    parser.add_argument('-wf', '--widen_factor', type=int, default=10)
+    parser.add_argument('-dropout', '--dropout_rate', type=float, default=0.3)
+
+    # optimization
+    parser.add_argument('-l', '--learning_rate', type=float, default=0.1)
+    parser.add_argument('-sched', '--scheduler', type=str, default='MultiStep', help='Scheduler for learning rate annealing: CosineAnnealing | MultiStep')
+    parser.add_argument('-mile', '--milestones', type=int, nargs='+', default=[60, 120, 160], help='Multi step scheduler annealing milestones')
+    parser.add_argument('-optim', '--optim', type=str, default='SGD', help='Optimizer?')
+
+    parser.add_argument('-wd', '--weight_decay', type=float, default=5e-4)
+    parser.add_argument('-mom', '--momentum', type=float, default=0.9)
+
+    args = parser.parse_args()
+    print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
+    return args
 
 args = parse_args()
 
-######################################################################################################### Seeding
+######################################################################################################### Admin
+saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(experiment_name=args.exp_name, log_path=args.logs_path)
+
+######################################################################################################### Data
+
+train_loader, val_loader, train_set, val_set, data_shape = load_dataset(args.dataset, args.data_loc, batch_size=args.batch_size, test_batch_size=args.test_batch_size, num_workers=args.num_workers, download=False, test=args.test)
+
+######################################################################################################### Determinism
 # Seeding can be annoying in pytorch at the moment. Based on my experience, the below means of seeding
 # allows for deterministic experimentation.
 torch.manual_seed(args.seed)
@@ -34,24 +86,8 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(args.seed)
     torch.backends.cudnn.deterministic = True
 
-######################################################################################################### Data
-trainloader, testloader, in_shape = load_dataset(args)
-n_train_batches = len(trainloader)
-n_train_images = len(trainloader.dataset)
-n_test_batches = len(testloader)
-n_test_images = len(testloader.dataset)
-
-print("Data loaded successfully ")
-print("Training --> {} images and {} batches".format(n_train_images, n_train_batches))
-print("Testing --> {} images and {} batches".format(n_test_images, n_test_batches))
-
-######################################################################################################### Additional Admin
-# Build folders for experiment
-saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(experiment_name=args.experiment_name,
-                                                                                log_path=args.logs_path,
-                                                                                save_images=args.save_images)
-
-# Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your many experiments was actually quite good but you forgot what you did
+# Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your
+# many experiments was actually quite good but you forgot what you did
 
 snapshot_filename = '{}/snapshot.tar.gz'.format(saved_models_filepath)
 filetypes_to_include = ['.py']
@@ -62,56 +98,16 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
     for file in all_files:
         tar.add(file)
 
-# For resuming the model training, find out from where
-start_epoch, latest_loadpath = get_start_epoch(args)
-args.latest_loadpath = latest_loadpath
-
-
-def compute_accuracy(logits, targets):
-    acc = (targets.cpu() == logits.cpu().argmax(-1)).float().detach().cpu().numpy()
-    return np.mean(acc)
-
-
-cross_entropy = nn.CrossEntropyLoss()
-
-differentiable_loss_a = lambda logits, targets: cross_entropy.forward(input=logits,
-                                                                      target=targets).detach().cpu().numpy()
-
-differentiable_loss_b = lambda logits, targets: cross_entropy.forward(input=logits,
-                                                                      target=targets).detach().cpu().numpy()
-
-mixed_loss = lambda logits, targets: differentiable_loss_a(logits, targets) + \
-                                     differentiable_loss_b(logits, targets)
-
-metric_functions_dict = {'train': {'loss': mixed_loss, 'acc': compute_accuracy},
-                         'val': {'loss': mixed_loss, 'acc': compute_accuracy},
-                         'test': {'loss': mixed_loss, 'acc': compute_accuracy}}
-
-metric_values_dict = {'epoch': [],
-                      'train': {},
-                      'val': {},
-                      'test': {}}
-
-summary_functions_to_be_collected_dict = {'mean': np.mean, 'std': np.std}
-
-if not args.resume:
-    # These are the currently tracked stats. I'm sure there are cleaner ways of doing this though.
-    save_metrics_dict_in_pt(log_dir=logs_filepath, metrics_file_name='metrics_summaries.pt',
-                              metrics_dict=metric_values_dict, overwrite=True)
-else:
-    metrics_dict = load_metrics_dict_from_pt(log_dir=logs_filepath, metrics_file_name='metrics_summaries.pt')
-
 ######################################################################################################### Model
-num_classes = 10 if args.dataset != 'cifar-100' else 100
-net = ModelSelector(in_shape=in_shape, num_classes=num_classes).select(args.model, args)
 
-print('Network summary:')
-
+num_classes = 100 if args.dataset.lower() == 'cifar100' else 10
+net = WideResNet(depth=args.resdepth, num_classes=num_classes, widen_factor=10, dropRate=args.dropout_rate)
+if args.distributed:
+    net = nn.DataParallel(net)
 net = net.to(device)
 
-summary(net, (in_shape[2], in_shape[0], in_shape[1]), args.batch_size)
-
 ######################################################################################################### Optimisation
+
 params = net.parameters()
 criterion = nn.CrossEntropyLoss()
 
@@ -130,16 +126,27 @@ else:
 restore_fields = {
     'net': net,
     'optimizer': optimizer,
+    'scheduler':scheduler,
 }
 
+start_epoch = 0
 if args.resume:
-    restore_model(restore_fields, args)
+    resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
+    if resume_epoch == -1:
+        print("Failed to load from {}/ckpt.pth.tar".format(saved_models_filepath))
+    else:
+        start_epoch = resume_epoch+1
 
+######################################################################################################### Metric
+
+metrics_to_track={'cross_entropy': lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(), 'accuracy':compute_accuracy}
+metric_tracker_train = MetricTracker(metrics_to_track=metrics_to_track, load=True if start_epoch>0 else False, path='{}/metrics_train.pt'.format(logs_filepath))
+metric_tracker_test = MetricTracker(metrics_to_track=metrics_to_track, load=True if start_epoch>0 else False, path='{}/metrics_test.pt'.format(logs_filepath))
 
 ######################################################################################################### Training
 
-def train_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name, net):
-    iter_meric_dict = dict()
+def train_iter(net, x, y, iteration, epoch, set_name):
+    global metric_tracker_train
 
     inputs, targets = x.to(device), y.to(device)
 
@@ -147,108 +154,99 @@ def train_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name, net):
 
     logits, activations = net(inputs)
 
-    for key, metric_function in metric_functions_dict['train'].items():
-        temp_epoch_metric_collection[key].append(metric_function(logits, targets))
-        iter_meric_dict[key] = metric_function(logits, targets)
-
-    loss = cross_entropy.forward(input=logits, target=targets)
+    loss = criterion(input=logits, target=targets)
+    metric_tracker_train.push(epoch, iteration, logits, targets)
 
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
-    iter_out = '{}, {}: {}; {}'.format(
-        args.experiment_name,
+    log_string = '{}, {}: {}; {}'.format(
+        args.exp_name,
         set_name,
-        batch_idx,
-        '. '.join(['{}: {:0.4f}'.format(key, value) for key, value in iter_meric_dict.items()]),
+        iteration,
+        ''.join([('{}: {:0.4f}; '.format(key, value[-1]) if (key != 'epochs' and key != 'iterations') else '')
+                   for key, value in metric_tracker_train.metrics.items()]),
     )
 
-    return iter_out, temp_epoch_metric_collection
+    return log_string
 
 
-def eval_iter(x, y, batch_idx, temp_epoch_metric_collection, set_name, net):
-    iter_meric_dict = dict()
-
-    x, y = x.to(device), y.to(device)
+def eval_iter(net, x, y, iteration, epoch, set_name):
+    global metric_tracker_test
+    x, targets = x.to(device), y.to(device)
 
     net = net.eval()
 
     logits, activations = net(x)
 
-    for key, metric_function in metric_functions_dict['train'].items():
-        temp_epoch_metric_collection[key].append(metric_function(logits, y))
-        iter_meric_dict[key] = metric_function(logits, y)
+    metric_tracker_test.push(epoch, iteration, logits, targets)
 
-    iter_out = '{}, {}: {}; {}'.format(
-        args.experiment_name,
+
+    log_string = '{}, {}: {}; {}'.format(
+        args.exp_name,
         set_name,
-        batch_idx,
-        '. '.join(['{}: {:0.4f}'.format(key, value) for key, value in iter_meric_dict.items()]),
+        iteration,
+        ''.join([('{}: {:0.4f}; '.format(key, value[-1]) if (key != 'epochs' and key != 'iterations') else '')
+                   for key, value in metric_tracker_test.metrics.items()]),
     )
 
-    return iter_out, temp_epoch_metric_collection
+    return log_string
 
-
+train_iterations = 0
 def run_epoch(epoch, net, train=True):
+    global train_iterations
     identifier = 'train' if train else 'test'
-    with tqdm.tqdm(initial=0, total=len(trainloader)) as pbar:
-        temp_epoch_metric_collection = {key: [] for key in metric_functions_dict[identifier].keys()}
-        for batch_idx, (inputs, targets) in enumerate(trainloader if train else testloader):
+    loader = train_loader if train else val_loader
+    with tqdm.tqdm(initial=0, total=len(loader)) as pbar:
 
-            if identifier is 'train':
-                iter_out, temp_epoch_metric_collection = train_iter(x=inputs, y=targets, batch_idx=batch_idx,
-                                                                    temp_epoch_metric_collection=temp_epoch_metric_collection,
-                                                                    set_name=identifier, net=net)
-            elif identifier is 'test':
-                iter_out, temp_epoch_metric_collection = eval_iter(x=inputs, y=targets, batch_idx=batch_idx,
-                                                                   temp_epoch_metric_collection=temp_epoch_metric_collection,
-                                                                   set_name=identifier, net=net)
+        for batch_idx, (inputs, targets) in enumerate(loader):
 
-            pbar.set_description(iter_out)
+            if train:
+
+                log_string = train_iter(net=net, x=inputs, y=targets,
+                                        iteration=train_iterations, epoch=epoch,
+                                        set_name=identifier)
+                train_iterations += 1
+            else:
+                log_string = eval_iter(net=net, x=inputs, y=targets,
+                                       iteration=train_iterations, epoch=epoch,
+                                       set_name=identifier)
+
+            pbar.set_description(log_string)
             pbar.update()
 
-            if args.save_images and batch_idx == 0:
-                # Would save any images here under '{}/{}/{}_stuff.png'.format(images_filepath, identifier, epoch)
-                pass
 
-        end_of_epoch_result_dict = dict()
 
-        for metric_key, metric_value in temp_epoch_metric_collection.items():
-            for summary_key, summary_function in summary_functions_to_be_collected_dict.items():
-                metric_name = '{}_{}'.format(metric_key, summary_key)
-
-                if metric_name not in metric_values_dict:
-                    metric_values_dict[identifier][metric_name] = []
-
-                metric_values_dict[identifier][metric_name].append(str(summary_function(metric_value)))
-                end_of_epoch_result_dict[metric_name] = summary_function(metric_value)
-    print(epoch, end_of_epoch_result_dict)
-    return metric_values_dict
 
 
 if __name__ == "__main__":
     with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
         for epoch in range(start_epoch, args.max_epochs):
 
-            train_metrics_dict = run_epoch(epoch, net=net, train=True)
-            test_metrics_dict = run_epoch(epoch, net=net, train=False)
+            run_epoch(epoch, net=net, train=True)
+            run_epoch(epoch, net=net, train=False)
+            scheduler.step()
 
-            save_metrics_dict_in_pt(logs_filepath, "train_metrics.pt",
-                                      metrics_dict=train_metrics_dict, overwrite=False)
-            save_metrics_dict_in_pt(logs_filepath, "test_metrics.pt",
-                                      metrics_dict=test_metrics_dict, overwrite=False)
 
-            ############################################################################################## Saving models
+
+            metric_tracker_train.plot(path='{}/train/metrics.png'.format(images_filepath))
+            metric_tracker_test.plot(path='{}/test/metrics.png'.format(images_filepath))
+            metric_tracker_train.save()
+            metric_tracker_test.save()
+
+################################################################################ Saving models
             if args.save:
                 state = {
+                    'args':args,
                     'epoch': epoch,
                     'net': net.state_dict(),
                     'optimizer': optimizer.state_dict(),
+                    'scheduler':scheduler.state_dict(),
                 }
-                epoch_pbar.set_description('Saving at {}/{}_checkpoint.pth.tar'.format(saved_models_filepath, epoch))
-                filename = '{}_checkpoint.pth.tar'.format(epoch)
-                previous_save = '{}/{}_checkpoint.pth.tar'.format(saved_models_filepath, epoch - 1)
+                epoch_pbar.set_description('Saving at {}/ckpt.pth.tar'.format(saved_models_filepath))
+                filename = 'ckpt.pth.tar'.format(epoch)
+                previous_save = '{}/ckpt.pth.tar'.format(saved_models_filepath, epoch - 1)
                 if os.path.isfile(previous_save):
                     os.remove(previous_save)
                 save_checkpoint(state=state,
