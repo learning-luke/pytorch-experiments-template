@@ -105,6 +105,7 @@ net = WideResNet(depth=args.resdepth, num_classes=num_classes, widen_factor=10, 
 if args.distributed:
     net = nn.DataParallel(net)
 net = net.to(device)
+summary(net, in_shape, batch_size=args.batch_size)
 
 ######################################################################################################### Optimisation
 

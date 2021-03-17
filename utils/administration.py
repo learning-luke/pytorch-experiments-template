@@ -28,6 +28,7 @@ def parse_args():
                         help='Data augmentation policies to apply. Can be: random_h_flip; random_v_flip; color_jitter; affine, which would also include random_rot_DEGREES, random_scale_SMALLEST_LARGEST, random_shear_DEGREES. [caps denote params you can set]')
     parser.add_argument('-test', '--test', type=int, default=0,
                         help='Test flag. If 0, will build a validation of size 10% set out of training set, otherwise will use test set')
+    parser.add_argument('-j','--num_dataloading_workers', type=int, default=0, help="Number of data loading workers")
 
     # logging
     parser.add_argument('-en', '--experiment_name', type=str, default='tester',
