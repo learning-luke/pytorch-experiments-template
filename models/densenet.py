@@ -102,4 +102,3 @@ def DenseNet201(growth_rate=32, num_classes=10):
 
 def DenseNet161(growth_rate=48, num_classes=10):
     return DenseNet(Bottleneck, [6,12,36,24], growth_rate=growth_rate, num_classes=num_classes)
-
