@@ -106,4 +106,3 @@ def enlarge_cinic_10(cinic_dir='../data/Cinic-10', symlink=True):
                     else:
                         if not os.path.isfile(dest_fn):
                             copyfile(fn, dest_fn)
-

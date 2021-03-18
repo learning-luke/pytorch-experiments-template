@@ -9,8 +9,8 @@ def parse_args():
     """
     parser = argparse.ArgumentParser()
     # data I/O
-    parser.add_argument('-data', '--dataset', type=str, default='Cifar-10',
-                        help='Which dataset to use: Cifar-10, Cifar-100, Cinic-10, Cinic-10-enlarged, MNIST, Fashion-MNIST')
+    parser.add_argument('-data', '--dataset', type=str, default='cifar-10',
+                        help='Which dataset to use: cifar-10, cifar-100, Cinic-10, Cinic-10-enlarged, MNIST, Fashion-MNIST')
     parser.add_argument('-root', '--root', type=str, default='../data',
                         help='Which dataset to use')
     parser.add_argument('-norm', '--dataset_norm_type', type=str, default='standardize',
@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('-j','--num_dataloading_workers', type=int, default=0, help="Number of data loading workers")
 
     # logging
-    parser.add_argument('-en', '--exp_name', type=str, default='tester',
+    parser.add_argument('-en', '--experiment_name', type=str, default='tester',
                         help='Experiment name for the model to be assessed')
     parser.add_argument('-o', '--logs_path', type=str, default='log',
                         help='Directory to save log files, check points, and tensorboard.')

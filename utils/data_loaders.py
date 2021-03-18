@@ -24,11 +24,15 @@ class MNISTLoader:
             normalize,
         ])
 
-    def get_data(self, data_loc, download=False):
+    def get_data(self, data_loc, download=False, test=False):
         train_set = datasets.MNIST(data_loc, train=True, download=download,
                                    transform=self.transform_train)
-        val_set = datasets.MNIST(data_loc, train=False,
-                                 transform=self.transform_validate)
+        if test:
+            val_set = datasets.MNIST(data_loc, train=False,
+                                     transform=self.transform_validate)
+        else:
+            splits = int(len(train_set) * 0.9), int(len(train_set)) - int(len(train_set) * 0.9)
+            train_set, val_set = torch.utils.data.random_split(train_set, [splits[0], splits[1]])
         return train_set, val_set
 
 
@@ -49,7 +53,7 @@ class CINIC10Loader:
             normalize,
         ])
 
-    def get_data(self, data_loc, download=False, enlarge=False):
+    def get_data(self, data_loc, download=False, enlarge=False, test=False):
         if download and not os.path.exists(data_loc):
             import ssl
             ssl._create_default_https_context = ssl._create_unverified_context
@@ -59,10 +63,14 @@ class CINIC10Loader:
                 enlarge_cinic_10(data_loc.replace('-enlarged',''))
 
         traindir = os.path.join(data_loc, 'train')
-        valdir = os.path.join(data_loc, 'test')
+        valdir = os.path.join(data_loc, 'valid')
+        testdir = os.path.join(data_loc, 'test')
 
         train_set = datasets.ImageFolder(traindir, self.transform_train)
-        val_set = datasets.ImageFolder(valdir, self.transform_validate)
+        if test:
+            val_set = datasets.ImageFolder(testdir, self.transform_validate)
+        else:
+            val_set = datasets.ImageFolder(valdir, self.transform_validate)
 
         return train_set, val_set
 
@@ -84,12 +92,16 @@ class CIFAR10Loader:
             normalize,
         ])
 
-    def get_data(self, data_loc, download=False):
+    def get_data(self, data_loc, download=False, test=False):
         train_set = datasets.CIFAR10(root=data_loc,
                                      train=True, download=download, transform=self.transform_train)
-        val_set = datasets.CIFAR10(root=data_loc,
-                                   train=False, download=download, transform=self.transform_validate)
 
+        if test:
+            val_set = datasets.CIFAR10(root=data_loc,
+                                       train=False, download=download, transform=self.transform_validate)
+        else:
+            splits = int(len(train_set) * 0.9), int(len(train_set)) - int(len(train_set) * 0.9)
+            train_set, val_set = torch.utils.data.random_split(train_set, [splits[0], splits[1]])
         return train_set, val_set
 
 
@@ -111,11 +123,15 @@ class CIFAR100Loader:
             normalize,
         ])
 
-    def get_data(self, data_loc, download=False):
+    def get_data(self, data_loc, download=False, test=False):
         train_set = datasets.CIFAR100(root=data_loc,
                                       train=True, download=download, transform=self.transform_train)
-        val_set = datasets.CIFAR100(root=data_loc,
-                                    train=False, download=download, transform=self.transform_validate)
+
+        if test:
+            val_set = datasets.CIFAR100(root=data_loc,
+                                        train=False, download=download, transform=self.transform_validate)
+        else:
+            train_set, val_set = torch.utils.data.random_split(train_set, [45000, 5000])
         return train_set, val_set
 
 
@@ -138,16 +154,21 @@ class ImageNetLoader:
             normalize,
         ])
 
-    def get_data(self, data_loc, download=False):
+    def get_data(self, data_loc, download=False, test=False):
         traindir = os.path.join(data_loc, 'train')
         valdir = os.path.join(data_loc, 'val')
 
         train_set = datasets.ImageFolder(traindir, self.transform_train)
-        val_set = datasets.ImageFolder(valdir, self.transform_validate)
+
+        if test:
+            val_set = datasets.ImageFolder(valdir, self.transform_validate)
+        else:
+            splits = int(len(train_set) * 0.9), int(len(train_set)) - int(len(train_set) * 0.9)
+            train_set, val_set = torch.utils.data.random_split(train_set, [splits[0], splits[1]])
 
         return train_set, val_set
 
-def load_dataset(dataset, data_loc, batch_size=128, num_workers=0, download=False):
+def load_dataset(dataset, data_loc, batch_size=128, test_batch_size=128, num_workers=0, download=False, test=False):
 
     datasets = {
         'mnist': MNISTLoader,
@@ -161,13 +182,13 @@ def load_dataset(dataset, data_loc, batch_size=128, num_workers=0, download=Fals
 
     ### e.g. ADD SIMCLR
     #dataloader.transform_train = SimCLRTransform(size=dataloader.im_size.width)
-    ### 
+    ###
 
-    train_set, val_set = dataloader.get_data(data_loc, download)
+    train_set, val_set = dataloader.get_data(data_loc, download, test=test)
 
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=batch_size, shuffle=True,
-        num_workers=num_dataloading_workers, pin_memory=True)
+        num_workers=num_workers, pin_memory=True)
 
     val_loader = torch.utils.data.DataLoader(
         val_set,

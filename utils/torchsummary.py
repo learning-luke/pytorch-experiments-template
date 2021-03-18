@@ -6,7 +6,7 @@ from collections import OrderedDict
 import numpy as np
 
 
-def summary(model, input_size, batch_size=-1, device="cuda"):
+def summary(model, input_size, batch_size=-1, device="cpu"):
 
     def register_hook(module):
 
