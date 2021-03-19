@@ -63,11 +63,10 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, variant=None, **kwargs):
+    def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
         super(ResNet, self).__init__()
         self.in_planes = 64
 
-        in_channels = kwargs['in_channels'] if 'in_channels' in kwargs else 3
 
         if variant == 'imagenet':
             self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7 if variant=='imagenet' else 3, stride=2 if variant=='imagenet' else 1, padding=3 if variant=='imagenet' else 1, bias=False)
