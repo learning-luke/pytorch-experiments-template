@@ -7,9 +7,7 @@ import numpy as np
 
 
 def summary(model, input_size, batch_size=-1, device="cpu"):
-
     def register_hook(module):
-
         def hook(module, input, output):
             class_name = str(module.__class__).split(".")[-1].split("'")[0]
             module_idx = len(summary)
@@ -97,9 +95,16 @@ def summary(model, input_size, batch_size=-1, device="cpu"):
         print(line_new)
 
     # assume 4 bytes/number (float on cuda).
-    total_input_size = abs(np.prod(np.concatenate(np.array([np.array(x) for x in input_size]))) * batch_size * 4. / (1024 ** 2.))
-    total_output_size = abs(2. * total_output * 4. / (1024 ** 2.))  # x2 for gradients
-    total_params_size = abs(total_params.numpy() * 4. / (1024 ** 2.))
+    total_input_size = abs(
+        np.prod(np.concatenate(np.array([np.array(x) for x in input_size])))
+        * batch_size
+        * 4.0
+        / (1024 ** 2.0)
+    )
+    total_output_size = abs(
+        2.0 * total_output * 4.0 / (1024 ** 2.0)
+    )  # x2 for gradients
+    total_params_size = abs(total_params.numpy() * 4.0 / (1024 ** 2.0))
     total_size = total_params_size + total_output_size + total_input_size
 
     print("================================================================")
