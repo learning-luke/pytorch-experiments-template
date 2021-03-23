@@ -18,21 +18,21 @@ class ModelSelector:
 
     def __init__(
         self,
-        in_shape=(32, 32, 3),
+        input_shape=(2, 32, 32, 3),
         num_classes=10,
     ):
         self.num_classes = num_classes
-        self.in_shape = in_shape
+        self.input_shape = input_shape
 
-    def select(self, model, args):
+    def select(self, model_type, args):
         """
         Selector utility to create models from model directory
-        :param model: which model to select. Currently choices are: (cnn | resnet | preact_resnet | densenet | wresnet)
+        :param model_type: which model to select. Currently choices are: (cnn | resnet | preact_resnet | densenet | wresnet)
         :return: neural network to be trained
         """
-        if model == "cnn":
-            net = SimpleModel(
-                in_shape=self.in_shape,
+        if model_type == "cnn":
+            model_type = SimpleModel(
+                in_shape=self.input_shape,
                 activation=args.activation,
                 num_classes=self.num_classes,
                 filters=args.filters,
@@ -42,79 +42,76 @@ class ModelSelector:
                 use_batch_norm=args.use_batch_norm,
             )
         else:
-            assert (
-                args.dataset != "MNIST" and args.dataset != "Fashion-MNIST"
-            ), "Cannot use resnet or densenet for mnist style data"
-            if model == "resnet":
-                assert args.resdepth in [
+            if model_type == "resnet":
+                assert args.depth in [
                     18,
                     34,
                     50,
                     101,
                     152,
                 ], "Non-standard and unsupported resnet depth ({})".format(
-                    args.resdepth
+                    args.depth
                 )
-                if args.resdepth == 18:
-                    net = ResNet18(self.num_classes)
-                elif args.resdepth == 34:
-                    net = ResNet34(self.num_classes)
-                elif args.resdepth == 50:
-                    net = ResNet50(self.num_classes)
-                elif args.resdepth == 101:
-                    net = ResNet101(self.num_classes)
+                if args.depth == 18:
+                    model_type = ResNet18(self.num_classes)
+                elif args.depth == 34:
+                    model_type = ResNet34(self.num_classes)
+                elif args.depth == 50:
+                    model_type = ResNet50(self.num_classes)
+                elif args.depth == 101:
+                    model_type = ResNet101(self.num_classes)
                 else:
-                    net = ResNet152()
-            elif model == "densenet":
-                assert args.resdepth in [
+                    model_type = ResNet152()
+            elif model_type == "densenet":
+                assert args.depth in [
                     121,
                     161,
                     169,
                     201,
                 ], "Non-standard and unsupported densenet depth ({})".format(
-                    args.resdepth
+                    args.depth
                 )
-                if args.resdepth == 121:
-                    net = DenseNet121(
+                if args.depth == 121:
+                    model_type = DenseNet121(
                         growth_rate=12, num_classes=self.num_classes
                     )  # NB NOTE: growth rate controls cifar implementation
-                elif args.resdepth == 161:
-                    net = DenseNet161(growth_rate=12, num_classes=self.num_classes)
-                elif args.resdepth == 169:
-                    net = DenseNet169(growth_rate=12, num_classes=self.num_classes)
+                elif args.depth == 161:
+                    model_type = DenseNet161(growth_rate=12, num_classes=self.num_classes)
+                elif args.depth == 169:
+                    model_type = DenseNet169(growth_rate=12, num_classes=self.num_classes)
                 else:
-                    net = DenseNet201(growth_rate=12, num_classes=self.num_classes)
-            elif model == "preact_resnet":
-                assert args.resdepth in [
+                    model_type = DenseNet201(growth_rate=12, num_classes=self.num_classes)
+            elif model_type == "preact_resnet":
+                assert args.depth in [
                     18,
                     34,
                     50,
                     101,
                     152,
                 ], "Non-standard and unsupported preact resnet depth ({})".format(
-                    args.resdepth
+                    args.depth
                 )
-                if args.resdepth == 18:
-                    net = PreActResNet18(self.num_classes)
-                elif args.resdepth == 34:
-                    net = PreActResNet34(self.num_classes)
-                elif args.resdepth == 50:
-                    net = PreActResNet50(self.num_classes)
-                elif args.resdepth == 101:
-                    net = PreActResNet101(self.num_classes)
+                if args.depth == 18:
+                    model_type = PreActResNet18(self.num_classes)
+                elif args.depth == 34:
+                    model_type = PreActResNet34(self.num_classes)
+                elif args.depth == 50:
+                    model_type = PreActResNet50(self.num_classes)
+                elif args.depth == 101:
+                    model_type = PreActResNet101(self.num_classes)
                 else:
-                    net = PreActResNet152()
-            elif model == "wresnet":
+                    model_type = PreActResNet152()
+            elif model_type == "wresnet":
                 assert (
-                    args.resdepth - 4
+                    args.depth - 4
                 ) % 6 == 0, "Wideresnet depth of {} not supported, must fulfill: (depth - 4) % 6 = 0".format(
-                    args.resdepth
+                    args.depth
                 )
-                net = WideResNet(
-                    depth=args.resdepth,
+                model_type = WideResNet(
+                    depth=args.depth,
                     num_classes=self.num_classes,
                     widen_factor=args.widen_factor,
                 )
             else:
-                raise NotImplementedError("Model {} not supported".format(model))
-        return net
+                raise NotImplementedError("Model {} not supported".format(model_type))
+        return model_type

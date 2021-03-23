@@ -102,7 +102,7 @@ def parse_args():
     )
     # resnet models
     parser.add_argument(
-        "-dep", "--resdepth", type=int, default=18, help="ResNet default depth"
+        "-dep", "--depth", type=int, default=18, help="ResNet default depth"
     )
     parser.add_argument(
         "-wf", "--widen_factor", type=int, default=2, help="Wide resnet widen factor"

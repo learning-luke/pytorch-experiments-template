@@ -116,7 +116,7 @@ def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar")
         shutil.copyfile(save_path, best_save_path)
 
 
-def restore_model(restore_fields, path, device="cpu"):
+def restore_model(restore_fields, path, epoch=None, device="cpu"):
     """
     Model restoration. This is built into the experiment framework and args.latest_loadpath should contain the path
     to the latest restoration point. This is automatically set in the framework
@@ -126,15 +126,17 @@ def restore_model(restore_fields, path, device="cpu"):
     :return: Nothing, only restore the network and optimizer.
     """
 
-    if os.path.isfile("{}/ckpt.pth.tar".format(path)):
+    checkpoint_name = 'latest_ckpt.pth.tar' if epoch==None else '{}_ckpt.pth.tar'.format(epoch)
+
+    if os.path.isfile("{}/{}".format(path, checkpoint_name)):
         checkpoint = torch.load(
-            "{}/ckpt.pth.tar".format(path), map_location=lambda storage, loc: storage
+            "{}/{}".format(path, checkpoint_name), map_location=lambda storage, loc: storage
         )
 
         for name, field in restore_fields.items():
             new_state_dict = OrderedDict()
             for k, v in checkpoint[name].items():
-                if "module" in k and device == "cpu":
+                if "module" in k and (device == "cpu" or torch.cuda.device_count() == 1):
                     name = k.replace("module.", "")  # remove module.
                 else:
                     name = k
@@ -174,6 +176,8 @@ def build_experiment_folder(experiment_name, log_path, save_images=True):
     if save_images:
         if not os.path.exists(images_filepath + "/train"):
             os.makedirs(images_filepath + "/train")
+        if not os.path.exists(images_filepath + "/val"):
+            os.makedirs(images_filepath + "/val")
         if not os.path.exists(images_filepath + "/test"):
             os.makedirs(images_filepath + "/test")
 
@@ -212,7 +216,7 @@ def print_network_stats(net):
     """
     trainable_params_count = 0
     trainable_weights_count = 0
-    for param in net.parameters():
+    for param in model.parameters():
         weight_count = 1
         for w in param.shape:
             weight_count *= w
