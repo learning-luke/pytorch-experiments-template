@@ -19,7 +19,7 @@ def isint(x):
     return isinstance(x, int)
 
 
-def save_metrics_dict_in_json(path, metrics_dict, overwrite):
+def save_dict_in_json(path, metrics_dict, overwrite):
     """
     Saves a metrics .json file with the metrics
     :param log_dir: Directory of log
@@ -38,10 +38,10 @@ def save_metrics_dict_in_json(path, metrics_dict, overwrite):
             os.remove(metrics_file_path)
 
     with open("{}.json".format(metrics_file_path), "w+") as json_file:
-        json.dump(metrics_dict, json_file)
+        json.dump(metrics_dict, json_file, indent=4)
 
 
-def load_metrics_dict_from_json(path):
+def load_dict_from_json(path):
     """
     Loads the metrics in a dictionary.
     :param log_dir: The directory in which the log is saved

@@ -24,7 +24,7 @@ def apply_to_test_device(model, input_tensor):
     return model, input_tensor
 
 
-def test_Conv2dRelationalSliceLevelRelationalIntegratorClassifier_layer_output_shape():
+def test_EasyPeasyConvNet_layer_output_shape():
     model = EasyPeasyConvNet(
         num_classes=10,
         kernel_size=3,
@@ -40,7 +40,7 @@ def test_Conv2dRelationalSliceLevelRelationalIntegratorClassifier_layer_output_s
     assert len(out.shape) == 2
 
 
-def test_Conv2dRelationalSliceLevelAvgIntegratorClassifier_layer_output_shape():
+def test_EasyPeasyConvRelationalNet_layer_output_shape():
     model = EasyPeasyConvRelationalNet(
         num_classes=10,
         kernel_size=3,

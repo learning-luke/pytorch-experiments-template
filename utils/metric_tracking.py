@@ -17,13 +17,15 @@ class MetricTracker:
     def __init__(
         self,
         tracker_name,
-        metrics_to_track={
-            "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
-            "accuracy": compute_accuracy,
-        },
+        metrics_to_track=None,
         load=True,
         path="",
     ):
+        if metrics_to_track is None:
+            metrics_to_track = {
+                "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
+                "accuracy": compute_accuracy,
+            }
         self.metrics_to_track = metrics_to_track
         self.tracker_name = tracker_name
         self.metrics = {"epochs": [], "iterations": []}

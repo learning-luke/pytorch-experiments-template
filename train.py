@@ -12,7 +12,10 @@ import random
 import glob
 import tarfile
 
-args, model_args = parse_args()  # load before torch import to ensure correct setup of GPUs
+(
+    args,
+    model_args,
+) = parse_args()  # load before torch import to ensure correct setup of GPUs
 select_devices(args.num_gpus_to_use)
 
 from utils.dataset_loading_hub import load_dataset
