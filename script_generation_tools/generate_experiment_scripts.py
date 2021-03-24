@@ -5,11 +5,7 @@ import argparse
 
 experiment_json_dir = "../experiment_config_files/"
 main_experiment_script = "train.py"
-# cluster_multi_gpu_apollo_template_script.sh
-# cluster_multi_gpu_charles_template_script.sh
-# cluster_single_gpu_apollo_template_script.sh
-# cluster_single_gpu_charles_template_script.sh
-# gpu_box_experiment_template_script.sh
+
 cluster_scripts = {
     "apollo_cluster_multi": "cluster_multi_gpu_apollo_template_script",
     "charles_cluster_multi": "cluster_multi_gpu_charles_template_script",

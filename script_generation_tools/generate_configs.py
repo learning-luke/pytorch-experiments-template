@@ -12,7 +12,7 @@ from utils.storage import save_dict_in_json
 hyperparameter_search_config = namedtuple("hyperparameter_search_config", "mdotbatch learning_rate ")
 
 default_variable_dict, _ = parse_args()
-default_variable_dict = vars(default_variable_dict)
+
 
 hyperparameter_config = hyperparameter_search_config(
     mdotbatch=[64, 128],

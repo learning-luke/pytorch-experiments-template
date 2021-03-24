@@ -11,8 +11,8 @@ def select_devices(num_gpus_to_use):
         gpu_to_use = GPUtil.getAvailable(
             order="first",
             limit=num_gpus_to_use,
-            maxLoad=0.15,
-            maxMemory=0.15,
+            maxLoad=0.20,
+            maxMemory=0.20,
             includeNan=False,
             excludeID=[],
             excludeUUID=[],

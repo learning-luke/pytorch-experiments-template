@@ -43,7 +43,7 @@ train_set_loader, val_set_loader, train_set, val_set, data_shape = load_dataset(
     batch_size=model_args.batch_size,
     test_batch_size=model_args.eval_batch_size,
     num_workers=args.num_workers,
-    download=False,
+    download=True,
     test=False,
 )
 
@@ -88,7 +88,7 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
 ######################################################################################################### Model
 
 num_classes = 100 if args.dataset_name.lower() == "cifar100" else 10
-model_selector = ModelSelector(input_shape=(2, 32, 32, 3), num_classes=10)
+model_selector = ModelSelector(input_shape=(2, 32, 32, 3), num_classes=num_classes)
 model = model_selector.select(model_type=model_args.type, args=model_args).to(device)
 
 if args.num_gpus_to_use > 1:

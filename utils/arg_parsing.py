@@ -1,7 +1,7 @@
 import argparse
 import json
 from collections import namedtuple
-
+import pprint
 from utils.storage import load_dict_from_json
 
 
@@ -10,13 +10,31 @@ def merge_json_with_mutable_arguments(json_file_path, arg_dict):
     for key in config_dict.keys():
         if "num_workers" in key:
             pass
-        elif "ngpus" in key:
+        elif "num_gpus_to_use" in key:
             pass
         else:
             arg_dict[key] = config_dict[key]
 
-    return config_dict
+    return arg_dict
 
+class DictWithDotNotation(dict):
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError as k:
+            raise AttributeError(k)
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    def __delattr__(self, key):
+        try:
+            del self[key]
+        except KeyError as k:
+            raise AttributeError(k)
+
+    def __repr__(self):
+        return '<DictWithDotNotation ' + dict.__repr__(self) + '>'
 
 def parse_args(verbose=True):
     """
@@ -26,7 +44,7 @@ def parse_args(verbose=True):
     parser = argparse.ArgumentParser()
     # data and I/O
 
-    parser.add_argument("-w", "--num_workers", type=int, default=1)
+    parser.add_argument("-w", "--num_workers", type=int, default=8)
     parser.add_argument(
         "-ngpus",
         "--num_gpus_to_use",
@@ -37,7 +55,7 @@ def parse_args(verbose=True):
 
     parser.add_argument("-d", "--dataset_name", type=str, default="cifar10")
     parser.add_argument(
-        "-path", "--data_filepath", type=str, default="../data/Cifar-10"
+        "-path", "--data_filepath", type=str, default="../data/cifar10"
     )
     parser.add_argument("-m.batch", "--model.batch_size", type=int, default=256)
     parser.add_argument(
@@ -101,17 +119,19 @@ def parse_args(verbose=True):
         args_dict = merge_json_with_mutable_arguments(
             json_file_path=args.filepath_to_arguments_json_config, arg_dict=vars(args)
         )
-        ArgsObject = namedtuple("ArgsObject", tuple(model_args.keys()))
-        args = ArgsObject(**args_dict)
+        args = DictWithDotNotation(args_dict)
+
+    if isinstance(args, argparse.Namespace):
+        args = vars(args)
 
     model_args = {
         key.replace("model.", ""): value
-        for key, value in vars(args).items()
+        for key, value in args.items()
         if "model." in key
     }
 
-    ModelArgsObject = namedtuple("ModelArgsObject", tuple(model_args.keys()))
-    model_args = ModelArgsObject(**model_args)
-    print("input args:\n", json.dumps(vars(args), indent=4, separators=(",", ":")))
+    model_args = DictWithDotNotation(model_args)
+    args = DictWithDotNotation(args)
 
+    pprint.pprint(args, indent=4)
     return args, model_args
