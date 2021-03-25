@@ -10,12 +10,25 @@ class TestModels(unittest.TestCase):
         res18 = get_model(
             "resnet18", num_classes=10, dataset="cifar10", in_channels=100
         )
-        cifar_data = torch.rand((64, 3, 32, 32))
+        cifar_data = torch.rand((64, 100, 32, 32))
         _ = res18(cifar_data)
 
         res18 = get_model("resnet18", num_classes=1000, dataset="imagenet")
         imagenet_data = torch.rand((64, 3, 224, 224))
         _ = res18(imagenet_data)
+
+    def test_densenet(self):
+        dense121 = get_model("densenet121", num_classes=10, dataset="cifar10")
+
+        cifar_data = torch.rand((64, 3, 32, 32))
+        _ = dense121(cifar_data)
+
+    def test_wrn(self):
+        wrn_40_2 = get_model("wrn_40_2", num_classes=10, dataset="cifar")
+
+        cifar_data = torch.rand((64, 3, 32, 32))
+
+        _ = wrn_40_2(cifar_data)
 
 
 if __name__ == "__main__":
