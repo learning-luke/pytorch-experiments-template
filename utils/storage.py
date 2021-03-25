@@ -28,8 +28,8 @@ def save_metrics_dict_in_json(path, metrics_dict, overwrite):
     :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
     """
 
-    if path.endswith('.json'):
-        path.replace('.json', '')
+    if path.endswith(".json"):
+        path.replace(".json", "")
 
     metrics_file_path = path
 
@@ -37,7 +37,7 @@ def save_metrics_dict_in_json(path, metrics_dict, overwrite):
         if os.path.exists(metrics_file_path):
             os.remove(metrics_file_path)
 
-    with open("{}.json".format(metrics_file_path), 'w+') as json_file:
+    with open("{}.json".format(metrics_file_path), "w+") as json_file:
         json.dump(metrics_dict, json_file)
 
 
@@ -49,12 +49,13 @@ def load_metrics_dict_from_json(path):
     :return: A dict with the metrics
     """
 
-    if not path.endswith('.json'):
-        path = '{}.json'.format(path)
+    if not path.endswith(".json"):
+        path = "{}.json".format(path)
     with open(path) as json_file:
         metrics_dict = json.load(json_file)
 
     return metrics_dict
+
 
 def load_metrics_dict_from_pt(path):
     """
@@ -64,14 +65,15 @@ def load_metrics_dict_from_pt(path):
     :return: A dict with the metrics
     """
 
-    if not path.endswith('.pt'):
-        path = '{}.pt'.format(path)
+    if not path.endswith(".pt"):
+        path = "{}.pt".format(path)
 
     metrics_file_path = path
 
     metrics_dict = torch.load(metrics_file_path)
 
     return metrics_dict
+
 
 def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     """
@@ -81,8 +83,8 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     :param metrics_dict: A dict of metrics to add in the file
     :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
     """
-    if not path.endswith('.pt'):
-        path = '{}.pt'.format(path)
+    if not path.endswith(".pt"):
+        path = "{}.pt".format(path)
 
     metrics_file_path = path
 
@@ -93,7 +95,7 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     torch.save(metrics_dict, metrics_file_path)
 
 
-def save_checkpoint(state, is_best, directory='', filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar"):
     """
     Checkpoint saving utility, to ensure that the checkpoints are saved in the right place
     :param state: this is what gets saved.
@@ -102,15 +104,19 @@ def save_checkpoint(state, is_best, directory='', filename='checkpoint.pth.tar')
     :param filename: using this filename
     :return: nothing, just save things
     """
-    save_path = '{}/{}'.format(directory, filename) if directory != '' else filename
+    save_path = "{}/{}".format(directory, filename) if directory != "" else filename
     torch.save(state, save_path)
 
     if is_best:
-        best_save_path = '{}/best_{}'.format(directory, filename) if directory != '' else 'best_{}'.format(filename)
+        best_save_path = (
+            "{}/best_{}".format(directory, filename)
+            if directory != ""
+            else "best_{}".format(filename)
+        )
         shutil.copyfile(save_path, best_save_path)
 
 
-def restore_model(restore_fields, path, device='cpu'):
+def restore_model(restore_fields, path, device="cpu"):
     """
     Model restoration. This is built into the experiment framework and args.latest_loadpath should contain the path
     to the latest restoration point. This is automatically set in the framework
@@ -120,23 +126,24 @@ def restore_model(restore_fields, path, device='cpu'):
     :return: Nothing, only restore the network and optimizer.
     """
 
-    if os.path.isfile('{}/ckpt.pth.tar'.format(path)):
-        checkpoint = torch.load('{}/ckpt.pth.tar'.format(path), map_location=lambda storage, loc: storage)
+    if os.path.isfile("{}/ckpt.pth.tar".format(path)):
+        checkpoint = torch.load(
+            "{}/ckpt.pth.tar".format(path), map_location=lambda storage, loc: storage
+        )
 
         for name, field in restore_fields.items():
             new_state_dict = OrderedDict()
             for k, v in checkpoint[name].items():
-                if 'module' in k and device == 'cpu':
+                if "module" in k and device == "cpu":
                     name = k.replace("module.", "")  # remove module.
                 else:
                     name = k
                 new_state_dict[name] = v
 
             field.load_state_dict(new_state_dict)
-        return checkpoint['epoch']
+        return checkpoint["epoch"]
     else:
         return -1
-
 
 
 def build_experiment_folder(experiment_name, log_path, save_images=True):
@@ -145,9 +152,15 @@ def build_experiment_folder(experiment_name, log_path, save_images=True):
     :param args: dictionary of arguments
     :return: filepaths for saved models, logs, and images
     """
-    saved_models_filepath = os.path.join(log_path, experiment_name.replace("%.%", "/"), "saved_models")
-    logs_filepath = os.path.join(log_path, experiment_name.replace("%.%", "/"), "summary_logs")
-    images_filepath = os.path.join(log_path, experiment_name.replace("%.%", "/"), "images")
+    saved_models_filepath = os.path.join(
+        log_path, experiment_name.replace("%.%", "/"), "saved_models"
+    )
+    logs_filepath = os.path.join(
+        log_path, experiment_name.replace("%.%", "/"), "summary_logs"
+    )
+    images_filepath = os.path.join(
+        log_path, experiment_name.replace("%.%", "/"), "images"
+    )
 
     if not os.path.exists(logs_filepath):
         os.makedirs(logs_filepath)
@@ -159,15 +172,17 @@ def build_experiment_folder(experiment_name, log_path, save_images=True):
         os.makedirs(images_filepath)
 
     if save_images:
-        if not os.path.exists(images_filepath + '/train'):
-            os.makedirs(images_filepath + '/train')
-        if not os.path.exists(images_filepath + '/test'):
-            os.makedirs(images_filepath + '/test')
+        if not os.path.exists(images_filepath + "/train"):
+            os.makedirs(images_filepath + "/train")
+        if not os.path.exists(images_filepath + "/test"):
+            os.makedirs(images_filepath + "/test")
 
     return saved_models_filepath, logs_filepath, images_filepath
 
 
-def get_best_performing_epoch_on_target_metric(metrics_dict, target_metric, ranking_method=np.argmax):
+def get_best_performing_epoch_on_target_metric(
+    metrics_dict, target_metric, ranking_method=np.argmax
+):
     """
     utility for finding best epoch thus far
     :param: metrics_dict: A dictionary containing the collected metrics from which to extract the best perf. model epoch
@@ -181,8 +196,10 @@ def get_best_performing_epoch_on_target_metric(metrics_dict, target_metric, rank
     if target_metric in metrics_dict:
         if len(metrics_dict[target_metric]) != 0:
             best_epoch_idx = ranking_method(metrics_dict[target_metric])
-            best_model_epoch, best_target_metric = metrics_dict['epoch'][best_epoch_idx],\
-                                                   metrics_dict[target_metric][best_epoch_idx]
+            best_model_epoch, best_target_metric = (
+                metrics_dict["epoch"][best_epoch_idx],
+                metrics_dict[target_metric][best_epoch_idx],
+            )
 
     return best_model_epoch, best_target_metric
 
@@ -203,4 +220,8 @@ def print_network_stats(net):
             trainable_params_count += 1
             trainable_weights_count += weight_count
 
-    print('{} parameters and {} weights are trainable'.format(trainable_params_count, trainable_weights_count))
+    print(
+        "{} parameters and {} weights are trainable".format(
+            trainable_params_count, trainable_weights_count
+        )
+    )

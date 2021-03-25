@@ -5,11 +5,18 @@ import torchvision.models as models
 
 from utils import data_loaders
 
-DATA_LOC = '~/datasets/'
+DATA_LOC = "~/datasets/"
+
 
 class TestLoaders(unittest.TestCase):
     def test_cifar10(self):
-        train_loader, val_loader, train_set, val_set, image_shape = data_loaders.load_dataset('cifar10', DATA_LOC+'cifar10', download=True)
+        (
+            train_loader,
+            val_loader,
+            train_set,
+            val_set,
+            image_shape,
+        ) = data_loaders.load_dataset("cifar10", DATA_LOC + "cifar10", download=True)
 
         num_classes = len(train_set.classes)
         self.assertEqual(num_classes, 10)
@@ -27,7 +34,13 @@ class TestLoaders(unittest.TestCase):
             self.assertEqual(y.size()[0], val_y.size()[0])
 
     def test_cinic10(self):
-        train_loader, val_loader, train_set, val_set, image_shape = data_loaders.load_dataset('cinic10', DATA_LOC+'cinic10', download=True)
+        (
+            train_loader,
+            val_loader,
+            train_set,
+            val_set,
+            image_shape,
+        ) = data_loaders.load_dataset("cinic10", DATA_LOC + "cinic10", download=True)
 
         num_classes = len(train_set.classes)
         self.assertEqual(num_classes, 10)
@@ -45,6 +58,5 @@ class TestLoaders(unittest.TestCase):
             self.assertEqual(y.size()[0], val_y.size()[0])
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
