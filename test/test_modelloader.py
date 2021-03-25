@@ -7,7 +7,9 @@ from models import get_model
 
 class TestModels(unittest.TestCase):
     def test_resnet(self):
-        res18 = get_model("resnet18", num_classes=10, dataset="cifar10")
+        res18 = get_model(
+            "resnet18", num_classes=10, dataset="cifar10", in_channels=100
+        )
         cifar_data = torch.rand((64, 3, 32, 32))
         _ = res18(cifar_data)
 

@@ -4,15 +4,15 @@ from .resnet import *
 from .wresnet import *
 
 
-def get_model(model, num_classes=10, dataset="cifar10"):
+def get_model(model, num_classes=10, dataset="cifar10", **kwargs):
 
     model_zoo = {
         # ResNets
-        "resnet18": ResNet18(num_classes=num_classes, variant=dataset),
-        "resnet34": ResNet34(num_classes=num_classes, variant=dataset),
-        "resnet50": ResNet50(num_classes=num_classes, variant=dataset),
-        "resnet101": ResNet101(num_classes=num_classes, variant=dataset),
-        "resnet152": ResNet152(num_classes=num_classes, variant=dataset),
+        "resnet18": ResNet18(num_classes=num_classes, variant=dataset, **kwargs),
+        "resnet34": ResNet34(num_classes=num_classes, variant=dataset, **kwargs),
+        "resnet50": ResNet50(num_classes=num_classes, variant=dataset, **kwargs),
+        "resnet101": ResNet101(num_classes=num_classes, variant=dataset, **kwargs),
+        "resnet152": ResNet152(num_classes=num_classes, variant=dataset, **kwargs),
         # DenseNets
         "densenet121": DenseNet121(growth_rate=12, num_classes=num_classes),
         "densenet161": DenseNet161(growth_rate=12, num_classes=num_classes),
