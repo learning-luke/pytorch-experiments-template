@@ -1,21 +1,26 @@
 import argparse
 import json
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import pprint
 from utils.storage import load_dict_from_json
+import sys
 
-
+# 3. priority should be defaults, json file, then any additional command line arguments
 def merge_json_with_mutable_arguments(json_file_path, arg_dict):
+
     config_dict = load_dict_from_json(json_file_path)
+    arguments_passed_to_command_line = get_arguments_passed_on_command_line(
+        arg_dict=arg_dict
+    )
+
     for key in config_dict.keys():
-        if "num_workers" in key:
-            pass
-        elif "num_gpus_to_use" in key:
+        if key in arguments_passed_to_command_line:
             pass
         else:
             arg_dict[key] = config_dict[key]
 
     return arg_dict
+
 
 class DictWithDotNotation(dict):
     def __getattr__(self, key):
@@ -34,84 +39,27 @@ class DictWithDotNotation(dict):
             raise AttributeError(k)
 
     def __repr__(self):
-        return '<DictWithDotNotation ' + dict.__repr__(self) + '>'
+        return "<DictWithDotNotation " + dict.__repr__(self) + ">"
 
-def parse_args(verbose=True):
+
+def get_arguments_passed_on_command_line(arg_dict):
+
+    return [
+        option.lower()
+        for command_line_argument in sys.argv[1:]
+        for option in arg_dict.keys()
+        if command_line_argument.lower() == option.lower()
+    ]
+
+
+def parse_args(parser):
     """
     Argument parser
     :return: parsed arguments
     """
-    parser = argparse.ArgumentParser()
-    # data and I/O
 
-    parser.add_argument("-w", "--num_workers", type=int, default=8)
-    parser.add_argument(
-        "-ngpus",
-        "--num_gpus_to_use",
-        type=int,
-        default=0,
-        help="The number of GPUs to use, use 0 to enable CPU",
-    )
-
-    parser.add_argument("-d", "--dataset_name", type=str, default="cifar10")
-    parser.add_argument(
-        "-path", "--data_filepath", type=str, default="../data/cifar10"
-    )
-    parser.add_argument("-m.batch", "--model.batch_size", type=int, default=256)
-    parser.add_argument(
-        "-m.evalbatch", "--model.eval_batch_size", type=int, default=100
-    )
-    parser.add_argument("-x", "--max_epochs", type=int, default=200)
-    parser.add_argument("-s", "--seed", type=int, default=0)
-    parser.add_argument(
-        "-resume", "--resume", default=False, dest="resume", action="store_true"
-    )
-    parser.add_argument(
-        "-test", "--test", dest="test", default=True, action="store_true"
-    )
-
-    # logging
-    parser.add_argument("-exp", "--experiment_name", type=str, default="dev")
-    parser.add_argument("-o", "--logs_path", type=str, default="log")
-
-    parser.add_argument(
-        "-json_config", "--filepath_to_arguments_json_config", type=str, default=None
-    )
-
-    parser.add_argument(
-        "-save", "--save", dest="save", default=True, action="store_true"
-    )
-    parser.add_argument(
-        "-nosave", "--nosave", dest="save", default=True, action="store_false"
-    )
-
-    # model
-    parser.add_argument("-m.type", "--model.type", type=str, default="resnet")
     parser.add_argument("-m.dep", "--model.depth", type=int, default=18)
     parser.add_argument("-m.wf", "--model.widen_factor", type=int, default=1)
-    parser.add_argument("-m.dropout", "--model.dropout_rate", type=float, default=0.3)
-
-    # optimization
-    parser.add_argument("-l", "--learning_rate", type=float, default=0.1)
-    parser.add_argument(
-        "-sched",
-        "--scheduler",
-        type=str,
-        default="MultiStep",
-        help="Scheduler for learning rate annealing: CosineAnnealing | MultiStep",
-    )
-    parser.add_argument(
-        "-mile",
-        "--milestones",
-        type=int,
-        nargs="+",
-        default=[60, 120, 160],
-        help="Multi step scheduler annealing milestones",
-    )
-    parser.add_argument("-optim", "--optim", type=str, default="SGD", help="Optimizer?")
-
-    parser.add_argument("-wd", "--weight_decay", type=float, default=5e-4)
-    parser.add_argument("-mom", "--momentum", type=float, default=0.9)
 
     args = parser.parse_args()
 
@@ -124,14 +72,24 @@ def parse_args(verbose=True):
     if isinstance(args, argparse.Namespace):
         args = vars(args)
 
-    model_args = {
-        key.replace("model.", ""): value
-        for key, value in args.items()
-        if "model." in key
-    }
+    args_tree_like_structure = dict()
 
-    model_args = DictWithDotNotation(model_args)
-    args = DictWithDotNotation(args)
+    for key, value in args.items():
+        if "." in key:
+            top_level_key = key.split(".")[0]
+            lower_level_key = key.replace(key.split(".")[0] + ".", "")
 
+            if top_level_key in args_tree_like_structure:
+                args_tree_like_structure[top_level_key][lower_level_key] = value
+            else:
+                args_tree_like_structure[top_level_key] = DictWithDotNotation(
+                    {lower_level_key: value}
+                )
+
+        else:
+            args_tree_like_structure[key] = value
+
+    args = DictWithDotNotation(args_tree_like_structure)
     pprint.pprint(args, indent=4)
-    return args, model_args
+
+    return args

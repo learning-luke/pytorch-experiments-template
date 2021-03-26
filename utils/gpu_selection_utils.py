@@ -2,6 +2,7 @@ import time
 import os
 import GPUtil
 
+# explicit by pass of the below
 
 def select_devices(num_gpus_to_use):
 

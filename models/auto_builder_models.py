@@ -97,13 +97,9 @@ class ClassificationModel(nn.Module):
             self.to(x.device)
 
         out = x
-        print("forward input", out.shape)
         features = self.feature_embedding_module.forward(out)
-        print("forward input", out.shape)
         out = features.view(features.shape[0], -1)
-        print("forward input", out.shape)
         out = self.output_layer.forward(out)
-        print("forward input", out.shape)
         return out, features
 
 

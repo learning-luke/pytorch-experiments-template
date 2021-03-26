@@ -9,6 +9,8 @@ from script_generation_tools.config_utils import (
 from utils.arg_parsing import parse_args
 from utils.storage import save_dict_in_json
 
+# 4. grid search and random search
+
 hyperparameter_search_config = namedtuple("hyperparameter_search_config", "mdotbatch learning_rate ")
 
 default_variable_dict, _ = parse_args()
