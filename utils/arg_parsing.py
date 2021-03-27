@@ -6,20 +6,18 @@ from utils.storage import load_dict_from_json
 import sys
 
 # 3. priority should be defaults, json file, then any additional command line arguments
-def merge_json_with_mutable_arguments(json_file_path, arg_dict):
+def merge_json_with_mutable_arguments(json_file_path, arg_dict, arg_parser):
 
     config_dict = load_dict_from_json(json_file_path)
     arguments_passed_to_command_line = get_arguments_passed_on_command_line(
         arg_dict=arg_dict
     )
-
+    print('arguments_passed_to_command_line', arguments_passed_to_command_line, sys.argv)
     for key in config_dict.keys():
         if key in arguments_passed_to_command_line:
-            pass
-        else:
-            arg_dict[key] = config_dict[key]
+            config_dict[key] = arg_dict[key]
 
-    return arg_dict
+    return config_dict
 
 
 class DictWithDotNotation(dict):
@@ -48,24 +46,28 @@ def get_arguments_passed_on_command_line(arg_dict):
         option.lower()
         for command_line_argument in sys.argv[1:]
         for option in arg_dict.keys()
-        if command_line_argument.lower() == option.lower()
+        if command_line_argument.lower().replace('--', '') == option.lower()
     ]
 
 
-def parse_args(parser):
+def add_extra_option_args(parser):
     """
     Argument parser
     :return: parsed arguments
     """
 
-    parser.add_argument("-m.dep", "--model.depth", type=int, default=18)
-    parser.add_argument("-m.wf", "--model.widen_factor", type=int, default=1)
+    parser.add_argument("--model.depth", type=int, default=18)
+    parser.add_argument("--model.widen_factor", type=int, default=1)
+
+    return parser
+
+def process_args(parser):
 
     args = parser.parse_args()
 
     if args.filepath_to_arguments_json_config is not None:
         args_dict = merge_json_with_mutable_arguments(
-            json_file_path=args.filepath_to_arguments_json_config, arg_dict=vars(args)
+            json_file_path=args.filepath_to_arguments_json_config, arg_dict=vars(args), arg_parser=parser
         )
         args = DictWithDotNotation(args_dict)
 

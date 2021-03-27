@@ -38,7 +38,7 @@ def save_dict_in_json(path, metrics_dict, overwrite):
             os.remove(metrics_file_path)
 
     with open("{}.json".format(metrics_file_path), "w+") as json_file:
-        json.dump(metrics_dict, json_file, indent=4)
+        json.dump(metrics_dict, json_file, indent=4, sort_keys=True)
 
 
 def load_dict_from_json(path):

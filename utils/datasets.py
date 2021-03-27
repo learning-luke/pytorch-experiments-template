@@ -1,7 +1,7 @@
 from torchvision import datasets, transforms
 from torch.utils.data import Dataset, Sampler, SubsetRandomSampler
 import torch
-from utils.augmentors import Cutout
+from utils.custom_transforms import Cutout
 from utils.cinic_utils import enlarge_cinic_10, download_cinic
 import numpy as np
 

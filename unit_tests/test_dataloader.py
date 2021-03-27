@@ -3,7 +3,7 @@ import argparse
 import torch
 import torchvision.models as models
 
-from utils import data_loaders
+from utils import dataset_loading_hub
 
 DATA_LOC = "~/datasets/"
 

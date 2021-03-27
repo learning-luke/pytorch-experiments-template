@@ -31,22 +31,22 @@ class MNISTLoader:
             ]
         )
 
-    def get_data(self, data_filepath, train_val_split_tuple, download=False, test=False):
+    def get_data(self, data_filepath, val_set_percentage, download=False):
         train_set = datasets.MNIST(
             data_filepath, train=True, download=download, transform=self.transform_train
         )
-        if test:
-            eval_set = datasets.MNIST(
-                data_filepath, train=False, transform=self.transform_validate
-            )
-        else:
-            splits = int(len(train_set) * 0.9), int(len(train_set)) - int(
-                len(train_set) * 0.9
-            )
-            train_set, eval_set = torch.utils.data.random_split(
-                train_set, [splits[0], splits[1]]
-            )
-        return train_set, eval_set
+        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_val_items = len(train_set) - num_training_items
+
+        train_set, val_set = torch.utils.data.random_split(
+            train_set, [num_training_items, num_val_items]
+        )
+
+        test_set = datasets.MNIST(
+            data_filepath, train=False, transform=self.transform_validate
+        )
+        num_labels = 10
+        return train_set, val_set, test_set, num_labels
 
 
 class CINIC10Loader:
@@ -71,27 +71,30 @@ class CINIC10Loader:
             ]
         )
 
-    def get_data(self, data_loc, download=False, enlarge=False, test=False):
-        if download and not os.path.exists(data_loc):
+    def get_data(self, data_filepath, download=False, enlarge=False, **args):
+        if download and not os.path.exists(data_filepath):
             import ssl
 
             ssl._create_default_https_context = ssl._create_unverified_context
 
-            download_cinic(data_loc.replace("-enlarged", ""))
+            download_cinic(data_filepath.replace("-enlarged", ""))
             if enlarge:
-                enlarge_cinic_10(data_loc.replace("-enlarged", ""))
+                enlarge_cinic_10(data_filepath.replace("-enlarged", ""))
 
-        traindir = os.path.join(data_loc, "train")
-        valdir = os.path.join(data_loc, "valid")
-        testdir = os.path.join(data_loc, "test")
+        train_set = datasets.ImageFolder(
+            os.path.join(data_filepath, "train"), self.transform_train
+        )
 
-        train_set = datasets.ImageFolder(traindir, self.transform_train)
-        if test:
-            eval_set = datasets.ImageFolder(testdir, self.transform_validate)
-        else:
-            eval_set = datasets.ImageFolder(valdir, self.transform_validate)
+        val_set = datasets.ImageFolder(
+            os.path.join(data_filepath, "valid"), self.transform_validate
+        )
 
-        return train_set, eval_set
+        test_set = datasets.ImageFolder(
+            os.path.join(data_filepath, "test"), self.transform_validate
+        )
+
+        num_labels = 10
+        return train_set, val_set, test_set, num_labels
 
 
 class CIFAR10Loader:
@@ -116,26 +119,30 @@ class CIFAR10Loader:
             ]
         )
 
-    def get_data(self, data_loc, download=False, test=False):
+    def get_data(self, data_filepath, val_set_percentage, download=False):
         train_set = datasets.CIFAR10(
-            root=data_loc, train=True, download=download, transform=self.transform_train
+            root=data_filepath,
+            train=True,
+            download=download,
+            transform=self.transform_train,
         )
 
-        if test:
-            eval_set = datasets.CIFAR10(
-                root=data_loc,
-                train=False,
-                download=download,
-                transform=self.transform_validate,
-            )
-        else:
-            splits = int(len(train_set) * 0.9), int(len(train_set)) - int(
-                len(train_set) * 0.9
-            )
-            train_set, eval_set = torch.utils.data.random_split(
-                train_set, [splits[0], splits[1]]
-            )
-        return train_set, eval_set
+        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_val_items = len(train_set) - num_training_items
+
+        train_set, val_set = torch.utils.data.random_split(
+            train_set, [num_training_items, num_val_items]
+        )
+
+        test_set = datasets.CIFAR10(
+            root=data_filepath,
+            train=False,
+            download=download,
+            transform=self.transform_validate,
+        )
+
+        num_labels = 10
+        return train_set, val_set, test_set, num_labels
 
 
 class CIFAR100Loader:
@@ -160,21 +167,30 @@ class CIFAR100Loader:
             ]
         )
 
-    def get_data(self, data_loc, download=False, test=False):
+    def get_data(self, data_filepath, val_set_percentage, download=False):
         train_set = datasets.CIFAR100(
-            root=data_loc, train=True, download=download, transform=self.transform_train
+            root=data_filepath,
+            train=True,
+            download=download,
+            transform=self.transform_train,
         )
 
-        if test:
-            eval_set = datasets.CIFAR100(
-                root=data_loc,
-                train=False,
-                download=download,
-                transform=self.transform_validate,
-            )
-        else:
-            train_set, eval_set = torch.utils.data.random_split(train_set, [45000, 5000])
-        return train_set, eval_set
+        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_val_items = len(train_set) - num_training_items
+
+        train_set, val_set = torch.utils.data.random_split(
+            train_set, [num_training_items, num_val_items]
+        )
+
+        test_set = datasets.CIFAR100(
+            root=data_filepath,
+            train=False,
+            download=download,
+            transform=self.transform_validate,
+        )
+
+        num_labels = 100
+        return train_set, val_set, test_set, num_labels
 
 
 class ImageNetLoader:
@@ -201,23 +217,24 @@ class ImageNetLoader:
             ]
         )
 
-    def get_data(self, data_loc, download=False, test=False):
-        traindir = os.path.join(data_loc, "train")
-        valdir = os.path.join(data_loc, "val")
+    def get_data(self, data_filepath, val_set_percentage, **kwargs):
+        train_dir = os.path.join(data_filepath, "train")
+        val_dir = os.path.join(data_filepath, "val")
 
-        train_set = datasets.ImageFolder(traindir, self.transform_train)
+        train_set = datasets.ImageFolder(train_dir, self.transform_train)
 
-        if test:
-            eval_set = datasets.ImageFolder(valdir, self.transform_validate)
-        else:
-            splits = int(len(train_set) * 0.9), int(len(train_set)) - int(
-                len(train_set) * 0.9
-            )
-            train_set, eval_set = torch.utils.data.random_split(
-                train_set, [splits[0], splits[1]]
-            )
+        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_val_items = len(train_set) - num_training_items
 
-        return train_set, eval_set
+        train_set, val_set = torch.utils.data.random_split(
+            train_set, [num_training_items, num_val_items]
+        )
+
+        test_set = datasets.ImageFolder(val_dir, self.transform_validate)
+
+        num_labels = 1000
+        return train_set, val_set, test_set, num_labels
+
 
 # build multi view augmentations
 def load_dataset(
@@ -227,7 +244,7 @@ def load_dataset(
     test_batch_size=128,
     num_workers=0,
     download=False,
-    test=False,
+    val_set_percentage=0.0,
 ):
 
     datasets = {
@@ -244,8 +261,8 @@ def load_dataset(
     # dataloader.transform_train = SimCLRTransform(size=dataloader.im_size.width)
     ###
 
-    train_set, eval_set = dataloader.get_data(
-        data_filepath, download, test=test
+    train_set, val_set, test_set, num_labels = dataloader.get_data(
+        data_filepath, val_set_percentage=val_set_percentage, download=download
     )
 
     train_loader = torch.utils.data.DataLoader(
@@ -257,8 +274,16 @@ def load_dataset(
     )
 
     val_loader = torch.utils.data.DataLoader(
-        eval_set,
-        batch_size=batch_size,
+        val_set,
+        batch_size=test_batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+
+    test_loader = torch.utils.data.DataLoader(
+        test_set,
+        batch_size=test_batch_size,
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
@@ -267,21 +292,33 @@ def load_dataset(
     return (
         train_loader,
         val_loader,
+        test_loader,
         train_set,
-        eval_set,
+        val_set,
+        test_set,
         dataloader.image_shape,
+        num_labels,
     )
+
 
 def load_split_datasets(dataset, split_tuple):
     total_length = len(dataset)
     total_idx = [i for i in range(total_length)]
 
-    start_end_index_tuples = [(int(len(total_idx) * sum(split_tuple[:i-1])),
-                                int(len(total_idx) * split_tuple[i])) for i in range(len(split_tuple))]
+    start_end_index_tuples = [
+        (
+            int(len(total_idx) * sum(split_tuple[: i - 1])),
+            int(len(total_idx) * split_tuple[i]),
+        )
+        for i in range(len(split_tuple))
+    ]
 
-    set_selection_index_lists = [total_idx[start_idx: end_idx] for (start_idx, end_idx) in
-                                 start_end_index_tuples]
+    set_selection_index_lists = [
+        total_idx[start_idx:end_idx] for (start_idx, end_idx) in start_end_index_tuples
+    ]
 
-    split_sets = (Subset(dataset, set_indices) for set_indices in set_selection_index_lists)
+    split_sets = (
+        Subset(dataset, set_indices) for set_indices in set_selection_index_lists
+    )
 
     return split_sets

@@ -1,3 +1,4 @@
+import dataclasses
 from copy import deepcopy, copy
 
 
@@ -5,7 +6,7 @@ def generate_hyperparameter_combination_dicts(hyperparameter_config):
 
     combinations = []
 
-    for key, values in hyperparameter_config._asdict().items():
+    for key, values in dataclasses.asdict(hyperparameter_config).items():
         temp_copy = deepcopy(combinations)
         combinations = []
 
@@ -23,7 +24,7 @@ def generate_hyperparameter_combination_dicts(hyperparameter_config):
     hyperparameter_combinations_dict = [
         {
             key.replace("dot", "."): value
-            for key, value in zip(list(hyperparameter_config._asdict().keys()), values)
+            for key, value in zip(list(dataclasses.asdict(hyperparameter_config).keys()), values)
         }
         for values in combinations
     ]

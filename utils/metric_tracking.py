@@ -42,6 +42,18 @@ class MetricTracker:
         for k, fnc in self.metrics_to_track.items():
             self.metrics[k].append(fnc(logits, targets))
 
+    def get_current_iteration_metric_trace_string(self):
+        return "".join(
+        [
+            (
+                "{}: {:0.4f}; ".format(key, value[-1])
+                if (key != "epochs" and key != "iterations")
+                else ""
+            )
+            for key, value in self.metrics.items()
+        ]
+    ),
+
     def save(self):
         save_metrics_dict_in_pt(
             path=self.path, metrics_dict=self.metrics, overwrite=True

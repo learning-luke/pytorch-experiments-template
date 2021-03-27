@@ -1,23 +1,26 @@
 import os
 import shutil
-from collections import namedtuple
+from dataclasses import dataclass
 
 from script_generation_tools.config_utils import (
     generate_hyperparameter_combination_dicts,
     generate_hyperparameter_search_experiment_configs,
 )
-from utils.arg_parsing import parse_args
+from utils.arg_parsing import add_extra_option_args
 from utils.storage import save_dict_in_json
-
+from train import get_base_arguments
 # 4. grid search and random search
 
-hyperparameter_search_config = namedtuple("hyperparameter_search_config", "mdotbatch learning_rate ")
+@dataclass
+class HyperparameterSearchConfig:
+    modeldotbatch_size: list
+    learning_rate: list
 
-default_variable_dict, _ = parse_args()
+default_variable_dict = vars(get_base_arguments())
 
 
-hyperparameter_config = hyperparameter_search_config(
-    mdotbatch=[64, 128],
+hyperparameter_config = HyperparameterSearchConfig(
+    modeldotbatch_size=[64, 128],
     learning_rate=[0.001, 0.0001, 0.00001]
 )
 
@@ -48,9 +51,7 @@ for config_dict, hyperparameter_dict in configs_list:
         config_dict["experiment_name"],
         "_".join(
             [
-                "{}_{}".format(
-                    key.replace(',', '-').replace(' ', ''), value
-                )
+                f"{key.replace(',', '-').replace(' ', '')}_{value}"
                 for key, value in hyperparameter_dict.items()
             ]
         ),

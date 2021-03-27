@@ -3,18 +3,18 @@ from .resnet import *
 from .wresnet import *
 
 
-def get_model(model, num_classes=10, dataset="cifar10", **kwargs):
+def get_model(model_type, num_classes=10, dataset_name="cifar10", **kwargs):
 
     ## NOTE: the unfortunate use of lambda here can be dropped as soon as
     ## PEP 622 https://www.python.org/dev/peps/pep-0622/ is released
     ## and replaced with pattern matching
     model_zoo = {
         # ResNets
-        "resnet18": lambda kwargs: ResNet18(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet34": lambda kwargs: ResNet34(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet50": lambda kwargs: ResNet50(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet101": lambda kwargs: ResNet101(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet152": lambda kwargs: ResNet152(num_classes=num_classes, variant=dataset, **kwargs),
+        "resnet18": lambda kwargs: ResNet18(num_classes=num_classes, variant=dataset_name, **kwargs),
+        "resnet34": lambda kwargs: ResNet34(num_classes=num_classes, variant=dataset_name, **kwargs),
+        "resnet50": lambda kwargs: ResNet50(num_classes=num_classes, variant=dataset_name, **kwargs),
+        "resnet101": lambda kwargs: ResNet101(num_classes=num_classes, variant=dataset_name, **kwargs),
+        "resnet152": lambda kwargs: ResNet152(num_classes=num_classes, variant=dataset_name, **kwargs),
         # DenseNets
         "densenet121": lambda kwargs: DenseNet121(growth_rate=12, num_classes=num_classes, **kwargs),
         "densenet161": lambda kwargs: DenseNet161(growth_rate=12, num_classes=num_classes, **kwargs),
@@ -32,4 +32,4 @@ def get_model(model, num_classes=10, dataset="cifar10", **kwargs):
         "wrn_40_2": lambda kwargs: WideResNet(depth=40, num_classes=num_classes, widen_factor=2, **kwargs),
     }
 
-    return model_zoo[model](kwargs)
+    return model_zoo[model_type](kwargs)

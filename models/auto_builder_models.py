@@ -15,15 +15,6 @@ class ClassificationModel(nn.Module):
         feature_embedding_args,
         num_classes,
     ):
-        """
-
-        :param feature_embedding_module_list: A class that defines the feature embedding module
-        :param feature_embedding_args:
-        :param num_classes:
-        """
-        # print(slice_level_embedding, slice_level_embedding_args)
-        # initialize a module dict, which is effectively a dictionary that can collect layers and integrate them
-        # into pytorch
         self.feature_embedding_module_list = feature_embedding_module_list
         self.feature_embedding_args = feature_embedding_args
         self.num_classes = num_classes
