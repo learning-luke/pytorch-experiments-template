@@ -304,7 +304,7 @@ if __name__ == "__main__":
             metrics_to_track=metrics_to_track,
             load=True if start_epoch > 0 else False,
             path=f"{logs_filepath}/metrics_{tracker_name}.pt",
-            tracker_name="training",
+            tracker_name=tracker_name,
         )
         for tracker_name in ["training", "validation", "testing"]
     )
