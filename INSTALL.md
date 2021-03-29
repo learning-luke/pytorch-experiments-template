@@ -15,7 +15,7 @@ This can be achieved as follows:
 on your machine. The command is not given here as it depends on your OS, CPU/GPU type and CUDA version (if any). 
 This one will take a while.
 
-### Note: PyTorch > 1.8.1 is required for proper usage of this codebase
+### Note: PyTorch >= 1.8.0 is required for proper usage of this codebase
 
 9. You should now be able to run the default resnet18, cifar10 experiment using 
    ```python train.py```. 
