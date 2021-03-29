@@ -286,7 +286,8 @@ if __name__ == "__main__":
     if args.resume:
         resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
         if resume_epoch == -1:
-            print("Failed to load from {}/ckpt.pth.tar".format(saved_models_filepath))
+            raise IOError(f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
+                          f"latest checkpoint is missing, please remove the --resume flag to try training from scratch")
         else:
             start_epoch = resume_epoch + 1
 
