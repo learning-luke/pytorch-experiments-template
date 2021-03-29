@@ -98,7 +98,7 @@ def train_iter(metric_tracker, model, x, y, iteration, epoch, set_name):
 
     log_string = (
         f"{args.experiment_name}, {set_name}: {iteration}; "
-        f"{metric_tracker.get_current_iteration_metric_trace_string}"
+        f"{metric_tracker.get_current_iteration_metric_trace_string()}"
     )
 
     return log_string
@@ -113,20 +113,9 @@ def eval_iter(metric_tracker, model, x, y, iteration, epoch, set_name):
 
     metric_tracker.push(epoch, iteration, logits, targets)
 
-    log_string = "{}, {}: {}; {}".format(
-        args.experiment_name,
-        set_name,
-        iteration,
-        "".join(
-            [
-                (
-                    "{}: {:0.4f}; ".format(key, value[-1])
-                    if (key != "epochs" and key != "iterations")
-                    else ""
-                )
-                for key, value in metric_tracker.metrics.items()
-            ]
-        ),
+    log_string = (
+        f"{args.experiment_name}, {set_name}: {iteration}; "
+        f"{metric_tracker.get_current_iteration_metric_trace_string()}"
     )
 
     return log_string

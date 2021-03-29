@@ -52,7 +52,7 @@ class MetricTracker:
             )
             for key, value in self.metrics.items()
         ]
-    ),
+    ).replace('(', '')
 
     def save(self):
         save_metrics_dict_in_pt(
