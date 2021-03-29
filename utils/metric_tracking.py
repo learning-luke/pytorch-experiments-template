@@ -16,14 +16,18 @@ def compute_accuracy(logits, targets):
 class MetricTracker:
     def __init__(
         self,
-        metrics_to_track={
-            "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
-            "accuracy": compute_accuracy,
-        },
+        tracker_name,
+        metrics_to_track=None,
         load=True,
         path="",
     ):
+        if metrics_to_track is None:
+            metrics_to_track = {
+                "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
+                "accuracy": compute_accuracy,
+            }
         self.metrics_to_track = metrics_to_track
+        self.tracker_name = tracker_name
         self.metrics = {"epochs": [], "iterations": []}
         self.path = path
         for k, _ in metrics_to_track.items():
@@ -37,6 +41,18 @@ class MetricTracker:
         self.metrics["iterations"].append(iteration)
         for k, fnc in self.metrics_to_track.items():
             self.metrics[k].append(fnc(logits, targets))
+
+    def get_current_iteration_metric_trace_string(self):
+        return "".join(
+        [
+            (
+                "{}: {:0.4f}; ".format(key, value[-1])
+                if (key != "epochs" and key != "iterations")
+                else ""
+            )
+            for key, value in self.metrics.items()
+        ]
+    ).replace('(', '')
 
     def save(self):
         save_metrics_dict_in_pt(
@@ -63,6 +79,9 @@ class MetricTracker:
                     epoch_metrics["{}_mean".format(k)].append(v_mean)
                     epoch_metrics["{}_std".format(k)].append(v_std)
         return epoch_metrics
+
+    def get_best_epoch_for_metric(self, metric_name, evaluation_metric=np.argmax):
+        return evaluation_metric(self.collect_per_epoch()[metric_name])
 
     def plot(self, path, plot_std_dev=True):
         epoch_metrics = self.collect_per_epoch()
