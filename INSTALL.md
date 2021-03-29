@@ -2,7 +2,7 @@ To use the Pytorch Experiment Template, one needs to set up a conda environment 
 This can be achieved as follows:
 1. Point your web-browser to [miniforge](https://github.com/conda-forge/miniforge)
 2. Find and download a suitable mini forge installer for your OS. The next few steps assume Linux and MacOS
-3. Go to the directory in which you have downloaded the minforge installer and run:```bash <mini-forge installer>``
+3. Go to the directory in which you have downloaded the minforge installer and run:```bash <mini-forge installer>```
 4. Follow the setup to install the environment. 
 5. Once done, activate conda using ```conda activate```, note that you might need to resource your .bashrc using 
    ```source ~/.bashrc``` to get access to conda if you are using the same terminal as the one used to install conda.
