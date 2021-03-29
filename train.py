@@ -160,7 +160,8 @@ if __name__ == "__main__":
     model_args = args.model
 
     if args.gpu_ids_to_use is None:
-        select_devices(args.num_gpus_to_use)
+        select_devices(args.num_gpus_to_use, max_load=args.max_gpu_selection_load, max_memory=args.max_gpu_selection_memory,
+                       exclude_gpu_ids=args.excude_gpu_list)
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids_to_use.replace(" ", ",")
 

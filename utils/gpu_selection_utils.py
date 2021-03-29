@@ -4,24 +4,27 @@ import GPUtil
 
 # explicit by pass of the below
 
-def select_devices(num_gpus_to_use):
+
+def select_devices(num_gpus_to_use, max_load, max_memory, exclude_gpu_ids):
 
     if num_gpus_to_use == 0:
-        os.environ["CUDA_VISIBLE_DEVICES"] = ''
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
     else:
         gpu_to_use = GPUtil.getAvailable(
             order="first",
             limit=num_gpus_to_use,
-            maxLoad=0.01,
-            maxMemory=0.01,
+            maxLoad=max_load,
+            maxMemory=max_memory,
             includeNan=False,
-            excludeID=[],
+            excludeID=exclude_gpu_ids,
             excludeUUID=[],
         )
         if len(gpu_to_use) < num_gpus_to_use:
-            print("Couldnt find enough GPU(s), stopping program")
-            return OSError
+            raise OSError("Couldnt find enough GPU(s) as required by the user, stopping program - consider reducing "
+                          "the requirements or using num_gpus_to_use=0 to use CPU")
 
-        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join([str(gpu_idx) for gpu_idx in gpu_to_use])
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
+            [str(gpu_idx) for gpu_idx in gpu_to_use]
+        )
 
         print("GPUs selected have IDs {}".format(os.environ["CUDA_VISIBLE_DEVICES"]))
