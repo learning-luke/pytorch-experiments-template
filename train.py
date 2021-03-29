@@ -54,6 +54,8 @@ def get_base_argument_parser():
     # model
     parser.add_argument("--model.type", type=str, default="resnet18")
     parser.add_argument("--model.dropout_rate", type=float, default=0.3)
+
+    parser.add_argument("--val_set_percentage", type=float, default=0.1)
     # optimization
     parser.add_argument("--learning_rate", type=float, default=0.1)
     parser.add_argument(
@@ -199,7 +201,7 @@ if __name__ == "__main__":
         test_batch_size=model_args.eval_batch_size,
         num_workers=args.num_workers,
         download=True,
-        val_set_percentage=0.1,
+        val_set_percentage=args.val_set_percentage,
     )
 
     ######################################################################################################### Determinism
@@ -378,19 +380,21 @@ if __name__ == "__main__":
             epoch_pbar.set_description("")
             epoch_pbar.update(1)
 
-        best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
-            evaluation_metric=np.argmax, metric_name="accuracy_mean"
-        )
-        resume_epoch = restore_model(
-            restore_fields, path=saved_models_filepath, epoch=best_epoch_val_model
-        )
+        if args.test:
+            if args.val_set_percentage >= 0.0:
+                best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
+                    evaluation_metric=np.argmax, metric_name="accuracy_mean"
+                )
+                resume_epoch = restore_model(
+                    restore_fields, path=saved_models_filepath, epoch=best_epoch_val_model
+                )
 
-        run_epoch(
-            epoch,
-            model=model,
-            training=False,
-            data_loader=test_set_loader,
-            metric_tracker=metric_tracker_test,
-        )
+            run_epoch(
+                epoch,
+                model=model,
+                training=False,
+                data_loader=test_set_loader,
+                metric_tracker=metric_tracker_test,
+            )
 
-        metric_tracker_test.save()
+            metric_tracker_test.save()
