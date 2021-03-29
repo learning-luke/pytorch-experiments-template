@@ -238,6 +238,11 @@ if __name__ == "__main__":
         dataset_name=args.dataset_name,
     ).to(device)
 
+    # alternatively one can define a model directly as follows
+    # ```
+    # model = ResNet18(num_classes=num_classes, variant=args.dataset_name).to(device)
+    # ```
+
     if args.num_gpus_to_use > 1:
         model = nn.parallel.DistributedDataParallel(
             model
