@@ -3,33 +3,30 @@ from .resnet import *
 from .wresnet import *
 
 
-def get_model(model, num_classes=10, dataset="cifar10", **kwargs):
+def get_model(model, **kwargs):
 
-    ## NOTE: the unfortunate use of lambda here can be dropped as soon as
-    ## PEP 622 https://www.python.org/dev/peps/pep-0622/ is released
-    ## and replaced with pattern matching
     model_zoo = {
         # ResNets
-        "resnet18": lambda kwargs: ResNet18(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet34": lambda kwargs: ResNet34(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet50": lambda kwargs: ResNet50(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet101": lambda kwargs: ResNet101(num_classes=num_classes, variant=dataset, **kwargs),
-        "resnet152": lambda kwargs: ResNet152(num_classes=num_classes, variant=dataset, **kwargs),
+        "resnet18": ResNet18,
+        "resnet34": ResNet34,
+        "resnet50": ResNet50,
+        "resnet101": ResNet101,
+        "resnet152": ResNet152,
         # DenseNets
-        "densenet121": lambda kwargs: DenseNet121(growth_rate=12, num_classes=num_classes, **kwargs),
-        "densenet161": lambda kwargs: DenseNet161(growth_rate=12, num_classes=num_classes, **kwargs),
-        "densenet169": lambda kwargs: DenseNet169(growth_rate=12, num_classes=num_classes, **kwargs),
-        "densenet201": lambda kwargs: DenseNet201(growth_rate=12, num_classes=num_classes, **kwargs),
+        "densenet121": DenseNet121,
+        "densenet161": DenseNet161,
+        "densenet169": DenseNet169,
+        "densenet201": DenseNet201,
         # Preact ResNets
-        "preact_resnet18": lambda kwargs: PreActResNet18(num_classes, **kwargs),
-        "preact_resnet34": lambda kwargs: PreActResNet34(num_classes, **kwargs),
-        "preact_resnet50": lambda kwargs: PreActResNet50(num_classes, **kwargs),
-        "preact_resnet101": lambda kwargs: PreActResNet101(num_classes, **kwargs),
-        "preact_resnet152": lambda kwargs: PreActResNet152(num_classes, **kwargs),
+        "preact_resnet18": PreActResNet18,
+        "preact_resnet34": PreActResNet34,
+        "preact_resnet50": PreActResNet50,
+        "preact_resnet101": PreActResNet101,
+        "preact_resnet152": PreActResNet152,
         # WideResNets
-        "wrn_16_8": lambda kwargs: WideResNet(depth=16, num_classes=num_classes, widen_factor=8, **kwargs),
-        "wrn_28_10": lambda kwargs: WideResNet(depth=28, num_classes=num_classes, widen_factor=10, **kwargs),
-        "wrn_40_2": lambda kwargs: WideResNet(depth=40, num_classes=num_classes, widen_factor=2, **kwargs),
+        "wrn_16_8": WideResNet_16_8,
+        "wrn_28_10": WideResNet_28_10,
+        "wrn_40_2": WideResNet_40_2,
     }
 
-    return model_zoo[model](kwargs)
+    return model_zoo[model](**kwargs)

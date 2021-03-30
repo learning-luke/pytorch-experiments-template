@@ -14,7 +14,9 @@ class Bottleneck(nn.Module):
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.conv1 = nn.Conv2d(in_planes, 4 * growth_rate, kernel_size=1, bias=False)
         self.bn2 = nn.BatchNorm2d(4 * growth_rate)
-        self.conv2 = nn.Conv2d(4 * growth_rate, growth_rate, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(
+            4 * growth_rate, growth_rate, kernel_size=3, padding=1, bias=False
+        )
 
     def forward(self, x):
         out = self.conv1(F.relu(self.bn1(x)))
@@ -36,7 +38,15 @@ class Transition(nn.Module):
 
 
 class DenseNet(nn.Module):
-    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, num_classes=10):
+    def __init__(
+        self,
+        block,
+        nblocks,
+        growth_rate=12,
+        reduction=0.5,
+        num_classes=10,
+        variant="cifar10",
+    ):
         super(DenseNet, self).__init__()
         self.growth_rate = growth_rate
 
@@ -91,16 +101,40 @@ class DenseNet(nn.Module):
 
 
 def DenseNet121(growth_rate=32, num_classes=10, **kwargs):
-    return DenseNet(Bottleneck, [6, 12, 24, 16], growth_rate=growth_rate, num_classes=num_classes, **kwargs)
+    return DenseNet(
+        Bottleneck,
+        [6, 12, 24, 16],
+        growth_rate=growth_rate,
+        num_classes=num_classes,
+        **kwargs
+    )
 
 
 def DenseNet169(growth_rate=32, num_classes=10, **kwargs):
-    return DenseNet(Bottleneck, [6, 12, 32, 32], growth_rate=growth_rate, num_classes=num_classes, **kwargs)
+    return DenseNet(
+        Bottleneck,
+        [6, 12, 32, 32],
+        growth_rate=growth_rate,
+        num_classes=num_classes,
+        **kwargs
+    )
 
 
 def DenseNet201(growth_rate=32, num_classes=10, **kwargs):
-    return DenseNet(Bottleneck, [6, 12, 48, 32], growth_rate=growth_rate, num_classes=num_classes, **kwargs)
+    return DenseNet(
+        Bottleneck,
+        [6, 12, 48, 32],
+        growth_rate=growth_rate,
+        num_classes=num_classes,
+        **kwargs
+    )
 
 
 def DenseNet161(growth_rate=48, num_classes=10, **kwargs):
-    return DenseNet(Bottleneck, [6, 12, 36, 24], growth_rate=growth_rate, num_classes=num_classes, **kwargs)
+    return DenseNet(
+        Bottleneck,
+        [6, 12, 36, 24],
+        growth_rate=growth_rate,
+        num_classes=num_classes,
+        **kwargs
+    )
