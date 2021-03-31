@@ -15,11 +15,6 @@ __all__ = [
     "ResNet50",
     "ResNet101",
     "ResNet152",
-    "PreActResNet18",
-    "PreActResNet34",
-    "PreActResNet50",
-    "PreActResNet101",
-    "PreActResNet152",
 ]
 
 
@@ -28,9 +23,13 @@ class BasicBlock(nn.Module):
 
     def __init__(self, in_planes, planes, stride=1):
         super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(
+            in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, stride=1, padding=1, bias=False
+        )
         self.bn2 = nn.BatchNorm2d(planes)
 
         self.shortcut = nn.Sequential()
@@ -61,9 +60,13 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, self.expansion * planes, kernel_size=1, bias=False)
+        self.conv3 = nn.Conv2d(
+            planes, self.expansion * planes, kernel_size=1, bias=False
+        )
         self.bn3 = nn.BatchNorm2d(self.expansion * planes)
 
         self.shortcut = nn.Sequential()
@@ -88,73 +91,6 @@ class Bottleneck(nn.Module):
         return out
 
 
-class PreActBlock(nn.Module):
-    """Pre-activation version of the BasicBlock."""
-
-    expansion = 1
-
-    def __init__(self, in_planes, planes, stride=1):
-        super(PreActBlock, self).__init__()
-        self.bn1 = nn.BatchNorm2d(in_planes)
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
-
-        if stride != 1 or in_planes != self.expansion * planes:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(
-                    in_planes,
-                    self.expansion * planes,
-                    kernel_size=1,
-                    stride=stride,
-                    bias=False,
-                )
-            )
-
-    def forward(self, x):
-        out = F.relu(self.bn1(x))
-        shortcut = self.shortcut(out) if hasattr(self, "shortcut") else x
-        out = self.conv1(out)
-        out = self.conv2(F.relu(self.bn2(out)))
-        out += shortcut
-        return out
-
-
-class PreActBottleneck(nn.Module):
-    """Pre-activation version of the original Bottleneck module."""
-
-    expansion = 4
-
-    def __init__(self, in_planes, planes, stride=1):
-        super(PreActBottleneck, self).__init__()
-        self.bn1 = nn.BatchNorm2d(in_planes)
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, self.expansion * planes, kernel_size=1, bias=False)
-
-        if stride != 1 or in_planes != self.expansion * planes:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(
-                    in_planes,
-                    self.expansion * planes,
-                    kernel_size=1,
-                    stride=stride,
-                    bias=False,
-                )
-            )
-
-    def forward(self, x):
-        out = F.relu(self.bn1(x))
-        shortcut = self.shortcut(out) if hasattr(self, "shortcut") else x
-        out = self.conv1(out)
-        out = self.conv2(F.relu(self.bn2(out)))
-        out = self.conv3(F.relu(self.bn3(out)))
-        out += shortcut
-        return out
-
-
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
         super(ResNet, self).__init__()
@@ -170,13 +106,17 @@ class ResNet(nn.Module):
                 bias=False,
             )
         else:
-            self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(
+                in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False
+            )
 
         self.bn1 = nn.BatchNorm2d(64)
 
         #  this pooling is only needed for imagenet-sized images
         self.maxpool = (
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1) if variant == "imagenet" else nn.Identity()
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            if variant == "imagenet"
+            else nn.Identity()
         )
 
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
@@ -209,44 +149,36 @@ class ResNet(nn.Module):
 
 
 def ResNet9(num_classes=10, variant="cifar10", **kwargs):
-    return ResNet(BasicBlock, [1, 1, 1, 1], num_classes=num_classes, variant=variant, **kwargs)
+    return ResNet(
+        BasicBlock, [1, 1, 1, 1], num_classes=num_classes, variant=variant, **kwargs
+    )
 
 
 def ResNet18(num_classes=10, variant="cifar10", **kwargs):
-    return ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes, variant=variant, **kwargs)
+    return ResNet(
+        BasicBlock, [2, 2, 2, 2], num_classes=num_classes, variant=variant, **kwargs
+    )
 
 
 def ResNet34(num_classes=10, variant="cifar10", **kwargs):
-    return ResNet(BasicBlock, [3, 4, 6, 3], num_classes=num_classes, variant=variant, **kwargs)
+    return ResNet(
+        BasicBlock, [3, 4, 6, 3], num_classes=num_classes, variant=variant, **kwargs
+    )
 
 
 def ResNet50(num_classes=10, variant="cifar10", **kwargs):
-    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes, variant=variant, **kwargs)
+    return ResNet(
+        Bottleneck, [3, 4, 6, 3], num_classes=num_classes, variant=variant, **kwargs
+    )
 
 
 def ResNet101(num_classes=10, variant="cifar10", **kwargs):
-    return ResNet(Bottleneck, [3, 4, 23, 3], num_classes=num_classes, variant=variant, **kwargs)
+    return ResNet(
+        Bottleneck, [3, 4, 23, 3], num_classes=num_classes, variant=variant, **kwargs
+    )
 
 
 def ResNet152(num_classes=10, variant="cifar10", **kwargs):
-    return ResNet(Bottleneck, [3, 8, 36, 3], num_classes=num_classes, variant=variant, **kwargs)
-
-
-def PreActResNet18(num_classes=10, **kwargs):
-    return ResNet(PreActBlock, [2, 2, 2, 2], num_classes=num_classes, **kwargs)
-
-
-def PreActResNet34(num_classes=10, **kwargs):
-    return ResNet(PreActBlock, [3, 4, 6, 3], num_classes=num_classes, **kwargs)
-
-
-def PreActResNet50(num_classes=10, **kwargs):
-    return ResNet(PreActBottleneck, [3, 4, 6, 3], num_classes=num_classes, **kwargs)
-
-
-def PreActResNet101(num_classes=10, **kwargs):
-    return ResNet(PreActBottleneck, [3, 4, 23, 3], num_classes=num_classes, **kwargs)
-
-
-def PreActResNet152(num_classes=10, **kwargs):
-    return ResNet(PreActBottleneck, [3, 8, 36, 3], num_classes=num_classes, **kwargs)
+    return ResNet(
+        Bottleneck, [3, 8, 36, 3], num_classes=num_classes, variant=variant, **kwargs
+    )

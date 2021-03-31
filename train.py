@@ -14,7 +14,7 @@ from utils.data_loaders import load_dataset
 import random
 import glob
 import tarfile
-from models.wresnet import WideResNet
+from models import model_zoo
 from utils.torchsummary import summary
 from utils.metric_tracking import MetricTracker, compute_accuracy
 
@@ -50,9 +50,13 @@ def parse_args(verbose=True):
     parser.set_defaults(save=True)
 
     # model
-    parser.add_argument("-model", "--model", type=str, default="wresnet")
-    parser.add_argument("-dep", "--resdepth", type=int, default=28)
-    parser.add_argument("-wf", "--widen_factor", type=int, default=10)
+    parser.add_argument(
+        "-model",
+        "--model",
+        type=str,
+        default="WideResNet_40_2",
+        choices=model_zoo.keys(),
+    )
     parser.add_argument("-dropout", "--dropout_rate", type=float, default=0.3)
 
     # optimization
@@ -83,6 +87,7 @@ def parse_args(verbose=True):
 
 
 args = parse_args()
+
 
 ######################################################################################################### Admin
 saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(
@@ -128,10 +133,8 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
 ######################################################################################################### Model
 
 num_classes = 100 if args.dataset.lower() == "cifar100" else 10
-net = WideResNet(
-    depth=args.resdepth,
+net = model_zoo(args.model)(
     num_classes=num_classes,
-    widen_factor=10,
     dropRate=args.dropout_rate,
 )
 if args.distributed:
