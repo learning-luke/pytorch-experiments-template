@@ -133,14 +133,14 @@ with tarfile.open(snapshot_filename, "w:gz") as tar:
 ######################################################################################################### Model
 
 num_classes = 100 if args.dataset.lower() == "cifar100" else 10
-net = model_zoo(args.model)(
+net = model_zoo[args.model](
     num_classes=num_classes,
     dropRate=args.dropout_rate,
 )
 if args.distributed:
     net = nn.DataParallel(net)
 net = net.to(device)
-summary(net, in_shape, batch_size=args.batch_size)
+summary(net, data_shape, batch_size=args.batch_size)
 
 ######################################################################################################### Optimisation
 
