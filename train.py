@@ -5,7 +5,7 @@ import numpy as np
 import tqdm
 
 
-from models import get_model
+from models import *
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
@@ -54,6 +54,7 @@ def get_base_argument_parser():
     # model
     parser.add_argument("--model.type", type=str, default="resnet18")
     parser.add_argument("--model.dropout_rate", type=float, default=0.3)
+    parser.add_argument("--model.stoch_depth_probability", type=float, default=None)
 
     parser.add_argument("--val_set_percentage", type=float, default=0.1)
     # optimization
@@ -154,6 +155,9 @@ def run_epoch(epoch, model, training, metric_tracker, data_loader):
             pbar.set_description(log_string)
             pbar.update()
 
+            if batch_idx > 5:
+                break
+
 
 if __name__ == "__main__":
     argument_parser = get_base_argument_parser()
@@ -242,6 +246,7 @@ if __name__ == "__main__":
         model_type=args.model.type,
         num_classes=num_classes,
         dataset_name=args.dataset_name,
+        stoch_depth_probability=args.model.stoch_depth_probability,
     ).to(device)
 
     # alternatively one can define a model directly as follows
@@ -255,6 +260,41 @@ if __name__ == "__main__":
         )  # more efficient version of DataParallel
 
     model = model.to(device)
+
+    ######################################################################################################### Stochastic Depth
+    if args.model.stoch_depth_probability is not None:
+
+        class StochasticDepthProbabilitySchedulerLinear:
+            def __init__(
+                self,
+                stoch_depth_probability=1.0,
+                final_stoch_depth_probability=0.5,
+                cur_epoch=0,
+                max_epochs=args.max_epochs,
+                model=None,
+            ):
+                self.stoch_depth_probability = stoch_depth_probability
+                self.schedule = torch.linspace(
+                    stoch_depth_probability, final_stoch_depth_probability, max_epochs
+                )
+                self.cur_epoch = cur_epoch
+
+            def step(self):
+                new_stoch_depth_probability = self.schedule[self.cur_epoch]
+
+                for module in model.modules():
+                    if isinstance(module, StochasticDepthBlock):
+                        module.stoch_depth_probability = new_stoch_depth_probability
+
+                self.cur_epoch += 1
+
+        stoch_depth_probability_scheduler = StochasticDepthProbabilitySchedulerLinear(
+            stoch_depth_probability=1.0,
+            final_stoch_depth_probability=0.5,
+            cur_epoch=0,
+            max_epochs=args.max_epochs,
+            model=model,
+        )
 
     ######################################################################################################### Optimisation
 
@@ -335,6 +375,8 @@ if __name__ == "__main__":
                 metric_tracker=metric_tracker_val,
             )
             scheduler.step()
+            if stoch_depth_probability_scheduler:
+                stoch_depth_probability_scheduler.step()
 
             metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")
             metric_tracker_val.plot(path=f"{images_filepath}/val/metrics.png")

@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 __all__ = [
+    "StochasticDepthBlock",
     "ResNet9",
     "ResNet18",
     "ResNet34",
@@ -103,12 +104,13 @@ class StochasticDepthBlock(nn.Module):
         self.stoch_depth_probability = torch.Tensor([stoch_depth_probability])
 
     def forward(self, x):
-        if torch.bernoulli(self.stoch_depth_probability):
-            return block.forward(x)
+        if self.training:
+            if torch.bernoulli(self.stoch_depth_probability):
+                return self.block.forward(x)
+            else:
+                return self.block.shortcut(x)
         else:
-            if block.shortcut is not None:
-                block.shortcut(x)
-            return x
+            return self.block.forward(x)
 
 
 class PreActBlock(nn.Module):
@@ -187,9 +189,19 @@ class PreActBottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
+    def __init__(
+        self,
+        block,
+        num_blocks,
+        num_classes=10,
+        variant=None,
+        in_channels=3,
+        stoch_depth_probability=None,
+    ):
         super(ResNet, self).__init__()
         self.in_planes = 64
+
+        self.stoch_depth_probability = stoch_depth_probability
 
         if variant == "imagenet":
             self.conv1 = nn.Conv2d(
@@ -227,7 +239,10 @@ class ResNet(nn.Module):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
+            layer = block(self.in_planes, planes, stride)
+            if self.stoch_depth_probability is not None:
+                layer = StochasticDepthBlock(layer, self.stoch_depth_probability)
+            layers.append(layer)
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
