@@ -10,6 +10,7 @@ Welcome to pytorch-experiments-template's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   tutorials/stochastic_depth
 
 
 Indices and tables
