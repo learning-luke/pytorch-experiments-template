@@ -126,17 +126,22 @@ def restore_model(restore_fields, path, epoch=None, device="cpu"):
     :return: Nothing, only restore the network and optimizer.
     """
 
-    checkpoint_name = 'latest_ckpt.pth.tar' if epoch==None else '{}_ckpt.pth.tar'.format(epoch)
+    checkpoint_name = (
+        "latest_ckpt.pth.tar" if epoch == None else "{}_ckpt.pth.tar".format(epoch)
+    )
 
     if os.path.isfile("{}/{}".format(path, checkpoint_name)):
         checkpoint = torch.load(
-            "{}/{}".format(path, checkpoint_name), map_location=lambda storage, loc: storage
+            "{}/{}".format(path, checkpoint_name),
+            map_location=lambda storage, loc: storage,
         )
 
         for name, field in restore_fields.items():
             new_state_dict = OrderedDict()
             for k, v in checkpoint[name].items():
-                if "module" in k and (device == "cpu" or torch.cuda.device_count() == 1):
+                if "module" in k and (
+                    device == "cpu" or torch.cuda.device_count() == 1
+                ):
                     name = k.replace("module.", "")  # remove module.
                 else:
                     name = k

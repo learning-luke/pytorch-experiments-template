@@ -9,19 +9,21 @@ from script_generation_tools.config_utils import (
 from utils.arg_parsing import add_extra_option_args
 from utils.storage import save_dict_in_json
 from train import get_base_arguments
+
 # 4. grid search and random search
+
 
 @dataclass
 class HyperparameterSearchConfig:
     modeldotbatch_size: list
     learning_rate: list
 
+
 default_variable_dict = vars(get_base_arguments())
 
 
 hyperparameter_config = HyperparameterSearchConfig(
-    modeldotbatch_size=[64, 128],
-    learning_rate=[0.001, 0.0001, 0.00001]
+    modeldotbatch_size=[64, 128], learning_rate=[0.001, 0.0001, 0.00001]
 )
 
 config_list = []
@@ -61,4 +63,6 @@ for config_dict, hyperparameter_dict in configs_list:
         experiment_config_target_json_dir, config_dict["experiment_name"]
     )
     cluster_script_name = os.path.abspath(cluster_script_name)
-    save_dict_in_json(metrics_dict=config_dict, path=cluster_script_name, overwrite=True)
+    save_dict_in_json(
+        metrics_dict=config_dict, path=cluster_script_name, overwrite=True
+    )

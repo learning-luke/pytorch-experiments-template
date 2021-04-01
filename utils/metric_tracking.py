@@ -44,15 +44,15 @@ class MetricTracker:
 
     def get_current_iteration_metric_trace_string(self):
         return "".join(
-        [
-            (
-                "{}: {:0.4f}; ".format(key, value[-1])
-                if (key != "epochs" and key != "iterations")
-                else ""
-            )
-            for key, value in self.metrics.items()
-        ]
-    ).replace('(', '')
+            [
+                (
+                    "{}: {:0.4f}; ".format(key, value[-1])
+                    if (key != "epochs" and key != "iterations")
+                    else ""
+                )
+                for key, value in self.metrics.items()
+            ]
+        ).replace("(", "")
 
     def save(self):
         save_metrics_dict_in_pt(

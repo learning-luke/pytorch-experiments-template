@@ -143,7 +143,9 @@ class ResNet(nn.Module):
 
         out = out.view(out.shape[0], 512, -1)
 
-        out = out.view(out.shape[0], 512, int(np.sqrt(out.shape[-1])), int(np.sqrt(out.shape[-1])))
+        out = out.view(
+            out.shape[0], 512, int(np.sqrt(out.shape[-1])), int(np.sqrt(out.shape[-1]))
+        )
 
         self.is_layer_built = True
 
@@ -169,7 +171,9 @@ class ResNet(nn.Module):
 
         out = out.view(out.shape[0], 512, -1)
 
-        out = out.view(out.shape[0], 512, int(np.sqrt(out.shape[-1])), int(np.sqrt(out.shape[-1])))
+        out = out.view(
+            out.shape[0], 512, int(np.sqrt(out.shape[-1])), int(np.sqrt(out.shape[-1]))
+        )
 
         return out
 

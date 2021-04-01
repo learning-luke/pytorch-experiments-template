@@ -64,20 +64,23 @@ def add_extra_option_args(parser):
         type=float,
         default=0.01,
         help="A float between 0 and 1.0 indicating the max percentage of utilization a GPU must have in order to "
-             "be considered "
-             "as available for usage")
+        "be considered "
+        "as available for usage",
+    )
     parser.add_argument(
         "--max_gpu_selection_memory",
         type=float,
         default=0.01,
         help="A float between 0 and 1.0 indicating the max memory percentage being used on a GPU in order to "
-             "be considered "
-             "as available for usage")
+        "be considered "
+        "as available for usage",
+    )
     parser.add_argument(
         "--excude_gpu_list",
         type=list,
         default=[],
-        help="A list of GPU IDs to exclude from the auto selection process")
+        help="A list of GPU IDs to exclude from the auto selection process",
+    )
 
     return parser
 
