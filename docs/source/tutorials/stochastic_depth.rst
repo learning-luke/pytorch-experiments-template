@@ -27,11 +27,11 @@ Experiment Plan
 
 What we'll do in this repository is:
 
-* implement a stochastic depth block for ResNets
-* add some flags to the training file for experiment management
-* train 50, 110 layer ResNets on CIFAR10, CINIC10
-* generate code to run multiple seeds of each experiment
-* write simple plotting/table generation code
+1. Implement a stochastic depth block for ResNets
+2. Add some flags to the training file for experiment management
+3. Train 50, 110 layer ResNets on CIFAR10, CINIC10
+4. Generate code to run multiple seeds of each experiment
+5. Write simple plotting/table generation code
 
 Hyperparameters
 ~~~~~~~~~~~~~~~
@@ -44,41 +44,25 @@ Implementation
 
 **1. Implementing a stochastic depth block.**
 
-Since we're modifying the ResNet blocks, I think the best way to do this is to subclass them.
-
-As a reminder, the Bottleneck block looks like this:
+Here's a relatively straightforward implementation:
 
 .. code-block:: python
-
-  class Bottleneck(nn.Module):
-      expansion = 4
-
-      def __init__(self, in_planes, planes, stride=1):
-          super(Bottleneck, self).__init__()
-          self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
-          self.bn1 = nn.BatchNorm2d(planes)
-          self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-          self.bn2 = nn.BatchNorm2d(planes)
-          self.conv3 = nn.Conv2d(planes, self.expansion * planes, kernel_size=1, bias=False)
-          self.bn3 = nn.BatchNorm2d(self.expansion * planes)
-
-          self.shortcut = nn.Sequential()
-          if stride != 1 or in_planes != self.expansion * planes:
-              self.shortcut = nn.Sequential(
-                  nn.Conv2d(
-                      in_planes,
-                      self.expansion * planes,
-                      kernel_size=1,
-                      stride=stride,
-                      bias=False,
-                  ),
-                  nn.BatchNorm2d(self.expansion * planes),
-              )
+  class StochasticDepthBlock(nn.Module):
+      def __init__(self, block, stoch_depth_probability=None):
+          super(StochasticDepthBlock, self).__init__()
+          self.block = block
+          self.stoch_depth_probability = torch.Tensor([stoch_depth_probability])
 
       def forward(self, x):
-          out = F.relu(self.bn1(self.conv1(x)))
-          out = F.relu(self.bn2(self.conv2(out)))
-          out = self.bn3(self.conv3(out))
-          out += self.shortcut(x)
-          out = F.relu(out)
-          return out
+          if torch.bernoulli(self.stoch_depth_probability):
+              return block.forward(x)
+          else:
+              if block.shortcut is not None:
+                  block.shortcut(x)
+              return x
+
+We pass in a block-type (either `BasicBlock` or `Bottleneck`), and then the StochasticDepthBlock is going to use the Bernoulli variable to decide whether to skip the block or not.
+
+**2. Adding handlers to the train file**
+
+The first step is to add an argument to the `ArgParser`.

@@ -162,8 +162,12 @@ if __name__ == "__main__":
     model_args = args.model
 
     if args.gpu_ids_to_use is None:
-        select_devices(args.num_gpus_to_use, max_load=args.max_gpu_selection_load, max_memory=args.max_gpu_selection_memory,
-                       exclude_gpu_ids=args.excude_gpu_list)
+        select_devices(
+            args.num_gpus_to_use,
+            max_load=args.max_gpu_selection_load,
+            max_memory=args.max_gpu_selection_memory,
+            exclude_gpu_ids=args.excude_gpu_list,
+        )
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids_to_use.replace(" ", ",")
 
@@ -288,8 +292,10 @@ if __name__ == "__main__":
     if args.resume:
         resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
         if resume_epoch == -1:
-            raise IOError(f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
-                          f"latest checkpoint is missing, please remove the --resume flag to try training from scratch")
+            raise IOError(
+                f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
+                f"latest checkpoint is missing, please remove the --resume flag to try training from scratch"
+            )
         else:
             start_epoch = resume_epoch + 1
 
@@ -330,9 +336,7 @@ if __name__ == "__main__":
             )
             scheduler.step()
 
-            metric_tracker_train.plot(
-                path=f"{images_filepath}/train/metrics.png"
-            )
+            metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")
             metric_tracker_val.plot(path=f"{images_filepath}/val/metrics.png")
             metric_tracker_train.save()
             metric_tracker_val.save()
@@ -386,7 +390,9 @@ if __name__ == "__main__":
                     evaluation_metric=np.argmax, metric_name="accuracy_mean"
                 )
                 resume_epoch = restore_model(
-                    restore_fields, path=saved_models_filepath, epoch=best_epoch_val_model
+                    restore_fields,
+                    path=saved_models_filepath,
+                    epoch=best_epoch_val_model,
                 )
 
             run_epoch(

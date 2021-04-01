@@ -142,3 +142,6 @@ log*
 *.png
 *tar*
 *.sh
+
+# Mac stuff (sorry)
+.DS_Store
