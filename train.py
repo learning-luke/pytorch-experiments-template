@@ -3,6 +3,7 @@ import json
 import os
 import numpy as np
 import tqdm
+import logging
 
 
 from models import get_model
@@ -34,8 +35,8 @@ def get_base_argument_parser():
 
     parser.add_argument("--dataset_name", type=str, default="cifar10")
     parser.add_argument("--data_filepath", type=str, default="../data/cifar10")
-    parser.add_argument("--model.batch_size", type=int, default=256)
-    parser.add_argument("--model.eval_batch_size", type=int, default=100)
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--eval_batch_size", type=int, default=256)
 
     parser.add_argument("--max_epochs", type=int, default=200)
     parser.add_argument("--seed", type=int, default=0)
@@ -84,72 +85,51 @@ def get_base_argument_parser():
 ######################################################################################################### Training
 
 
-def train_iter(metric_tracker, model, x, y, iteration, epoch, set_name):
-    inputs, targets = x.to(device), y.to(device)
-
-    model = model.train()
-
-    logits, features = model(inputs)
-
-    loss = criterion(input=logits, target=targets)
-    metric_tracker.push(epoch, iteration, logits, targets)
-
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    log_string = (
-        f"{args.experiment_name}, {set_name}: {iteration}; "
-        f"{metric_tracker.get_current_iteration_metric_trace_string()}"
-    )
-
-    return log_string
-
-
-def eval_iter(metric_tracker, model, x, y, iteration, epoch, set_name):
-    x, targets = x.to(device), y.to(device)
-
-    model = model.eval()
-
-    logits, features = model(x)
-
-    metric_tracker.push(epoch, iteration, logits, targets)
-
-    log_string = (
-        f"{args.experiment_name}, {set_name}: {iteration}; "
-        f"{metric_tracker.get_current_iteration_metric_trace_string()}"
-    )
-
-    return log_string
-
-
-def run_epoch(epoch, model, training, metric_tracker, data_loader):
-    training_iterations = epoch * len(data_loader)
-
+def train(epoch, data_loader, model, metric_tracker):
     with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
 
         for batch_idx, (inputs, targets) in enumerate(data_loader):
-            if training:
-                log_string = train_iter(
-                    model=model,
-                    x=inputs,
-                    y=targets,
-                    iteration=training_iterations,
-                    epoch=epoch,
-                    set_name=metric_tracker.tracker_name,
-                    metric_tracker=metric_tracker,
-                )
-                training_iterations += 1
-            else:
-                log_string = eval_iter(
-                    model=model,
-                    x=inputs,
-                    y=targets,
-                    iteration=training_iterations,
-                    epoch=epoch,
-                    set_name=metric_tracker.tracker_name,
-                    metric_tracker=metric_tracker,
-                )
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            model = model.train()
+
+            logits, features = model(inputs)
+
+            loss = criterion(input=logits, target=targets)
+            metric_tracker.push(epoch, batch_idx, logits, targets)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            log_string = (
+                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
+                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
+            )
+
+            pbar.set_description(log_string)
+            pbar.update()
+
+            if batch_idx >= 3:
+                break
+
+
+def eval(epoch, data_loader, model, metric_tracker):
+    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+
+        for batch_idx, (inputs, targets) in enumerate(data_loader):
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            model = model.eval()
+
+            logits, features = model(inputs)
+
+            metric_tracker.push(epoch, batch_idx, logits, targets)
+
+            log_string = (
+                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
+                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
+            )
 
             pbar.set_description(log_string)
             pbar.update()
@@ -158,8 +138,6 @@ def run_epoch(epoch, model, training, metric_tracker, data_loader):
 if __name__ == "__main__":
     argument_parser = get_base_argument_parser()
     args = process_args(argument_parser)
-
-    model_args = args.model
 
     if args.gpu_ids_to_use is None:
         select_devices(
@@ -171,9 +149,8 @@ if __name__ == "__main__":
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids_to_use.replace(" ", ",")
 
-    from utils.dataset_loading_hub import load_dataset
+    from datasets.dataset_loading_hub import load_dataset
 
-    from models.wresnet import WideResNet
     import torch
     import torch.nn as nn
     import torch.optim as optim
@@ -189,6 +166,12 @@ if __name__ == "__main__":
 
     ######################################################################################################### Data
 
+    #  if you have an environment variable set, prioritise this over the default argparse option
+    environment_data_filepath = os.environ.get("PYTORCH_DATA_LOC")
+    if environment_data_filepath is not None:
+        logging.warning(
+            f"You have a data filepath set in your environment: {environment_data_filepath}. This will override argparse."
+        )
     (
         train_set_loader,
         val_set_loader,
@@ -200,9 +183,11 @@ if __name__ == "__main__":
         num_classes,
     ) = load_dataset(
         args.dataset_name,
-        args.data_filepath,
-        batch_size=model_args.batch_size,
-        test_batch_size=model_args.eval_batch_size,
+        args.data_filepath
+        if environment_data_filepath is None
+        else environment_data_filepath,
+        batch_size=args.batch_size,
+        test_batch_size=args.eval_batch_size,
         num_workers=args.num_workers,
         download=True,
         val_set_percentage=args.val_set_percentage,
@@ -320,18 +305,16 @@ if __name__ == "__main__":
     with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
         for epoch in range(start_epoch, args.max_epochs):
 
-            run_epoch(
+            train(
                 epoch,
                 data_loader=train_set_loader,
                 model=model,
-                training=True,
                 metric_tracker=metric_tracker_train,
             )
-            run_epoch(
+            eval(
                 epoch,
                 data_loader=val_set_loader,
                 model=model,
-                training=False,
                 metric_tracker=metric_tracker_val,
             )
             scheduler.step()
@@ -395,10 +378,9 @@ if __name__ == "__main__":
                     epoch=best_epoch_val_model,
                 )
 
-            run_epoch(
+            eval(
                 epoch,
                 model=model,
-                training=False,
                 data_loader=test_set_loader,
                 metric_tracker=metric_tracker_test,
             )

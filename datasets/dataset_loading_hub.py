@@ -6,7 +6,7 @@ from collections import namedtuple
 
 from torch.utils.data import Subset
 
-from utils.custom_transforms import SimCLRTransform
+from datasets.custom_transforms import SimCLRTransform
 from utils.cinic_utils import enlarge_cinic_10, download_cinic
 
 ImageShape = namedtuple("ImageShape", ["channels", "width", "height"])
