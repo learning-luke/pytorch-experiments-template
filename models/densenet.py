@@ -45,7 +45,7 @@ class DenseNet(nn.Module):
         growth_rate=12,
         reduction=0.5,
         num_classes=10,
-        variant="cifar10",
+        dataset_name=None,
     ):
         super(DenseNet, self).__init__()
         self.growth_rate = growth_rate

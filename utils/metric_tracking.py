@@ -44,15 +44,15 @@ class MetricTracker:
 
     def get_current_iteration_metric_trace_string(self):
         return "".join(
-        [
-            (
-                "{}: {:0.4f}; ".format(key, value[-1])
-                if (key != "epochs" and key != "iterations")
-                else ""
-            )
-            for key, value in self.metrics.items()
-        ]
-    ).replace('(', '')
+            [
+                (
+                    f"{key}: {value[-1]:0.4f}; "
+                    if (key != "epochs" and key != "iterations")
+                    else ""
+                )
+                for key, value in self.metrics.items()
+            ]
+        ).replace("(", "")
 
     def save(self):
         save_metrics_dict_in_pt(
@@ -62,8 +62,8 @@ class MetricTracker:
     def collect_per_epoch(self):
         epoch_metrics = {"epochs": []}
         for k, _ in self.metrics_to_track.items():
-            epoch_metrics["{}_mean".format(k)] = []
-            epoch_metrics["{}_std".format(k)] = []
+            epoch_metrics[f"{k}_mean"] = []
+            epoch_metrics[f"{k}_std"] = []
 
         epochs = self.metrics["epochs"]
         unique_epochs = np.unique(epochs)
@@ -76,8 +76,8 @@ class MetricTracker:
                     where_metrics = epochs == this_epoch
                     v_mean = np.mean(v[where_metrics])
                     v_std = np.std(v[where_metrics])
-                    epoch_metrics["{}_mean".format(k)].append(v_mean)
-                    epoch_metrics["{}_std".format(k)].append(v_std)
+                    epoch_metrics[f"{k}_mean"].append(v_mean)
+                    epoch_metrics[f"{k}_std"].append(v_std)
         return epoch_metrics
 
     def get_best_epoch_for_metric(self, metric_name, evaluation_metric=np.argmax):

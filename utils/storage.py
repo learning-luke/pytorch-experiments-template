@@ -39,7 +39,7 @@ def save_dict_in_json(path, metrics_dict, overwrite):
         if os.path.exists(metrics_file_path):
             os.remove(metrics_file_path)
 
-    with open("{}.json".format(metrics_file_path), "w+") as json_file:
+    with open(f"{metrics_file_path}.json", "w+") as json_file:
         json.dump(metrics_dict, json_file, indent=4, sort_keys=True)
 
 
@@ -52,7 +52,7 @@ def load_dict_from_json(path):
     """
 
     if not path.endswith(".json"):
-        path = "{}.json".format(path)
+        path = f"{path}.json"
     with open(path) as json_file:
         metrics_dict = json.load(json_file)
 
@@ -68,7 +68,7 @@ def load_metrics_dict_from_pt(path):
     """
 
     if not path.endswith(".pt"):
-        path = "{}.pt".format(path)
+        path = f"{path}.pt"
 
     metrics_file_path = path
 
@@ -86,7 +86,7 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
     """
     if not path.endswith(".pt"):
-        path = "{}.pt".format(path)
+        path = f"{path}.pt"
 
     metrics_file_path = path
 
@@ -106,14 +106,12 @@ def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar")
     :param filename: using this filename
     :return: nothing, just save things
     """
-    save_path = "{}/{}".format(directory, filename) if directory != "" else filename
+    save_path = f"{directory}/{filename}" if directory != "" else filename
     torch.save(state, save_path)
 
     if is_best:
         best_save_path = (
-            "{}/best_{}".format(directory, filename)
-            if directory != ""
-            else "best_{}".format(filename)
+            f"{directory}/best_{filename}" if directory != "" else f"best_{filename}"
         )
         shutil.copyfile(save_path, best_save_path)
 
@@ -129,12 +127,12 @@ def restore_model(restore_fields, path, epoch=None, device="cpu"):
     """
 
     checkpoint_name = (
-        "latest_ckpt.pth.tar" if epoch == None else "{}_ckpt.pth.tar".format(epoch)
+        "latest_ckpt.pth.tar" if epoch == None else f"{epoch}_ckpt.pth.tar"
     )
 
-    if os.path.isfile("{}/{}".format(path, checkpoint_name)):
+    if os.path.isfile(f"{path}/{checkpoint_name}"):
         checkpoint = torch.load(
-            "{}/{}".format(path, checkpoint_name),
+            f"{path}/{checkpoint_name}",
             map_location=lambda storage, loc: storage,
         )
 
@@ -226,9 +224,7 @@ def print_network_stats(net):
             trainable_weights_count += weight_count
 
     print(
-        "{} parameters and {} weights are trainable".format(
-            trainable_params_count, trainable_weights_count
-        )
+        f"{trainable_params_count} parameters and {trainable_weights_count} weights are trainable"
     )
 
 

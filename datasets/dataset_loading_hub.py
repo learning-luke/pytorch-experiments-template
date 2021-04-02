@@ -127,7 +127,7 @@ class CIFAR10Loader:
             transform=self.transform_train,
         )
 
-        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_training_items = int(len(train_set) * (1.0 - val_set_percentage))
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
