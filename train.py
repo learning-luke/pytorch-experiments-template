@@ -2,8 +2,10 @@ import os
 import json
 import tqdm
 import random
+import hashlib
 import logging
 import argparse
+import datetime
 
 import numpy as np
 
@@ -154,9 +156,8 @@ if __name__ == "__main__":
         args.gpu_ids_to_use, args.num_gpus_to_use
     )
 
-    model_checkpoint_file_name = (
-        f"{args.experiment_name}_{args.model.type}_{args.dataset_name}_{args.seed}"
-    )
+    experiment_hash = str(hashlib.md5(str(datetime.datetime.now())))
+    model_checkpoint_file_name = f"{args.experiment_name}_{args.model.type}_{args.dataset_name}_{args.seed}_{experiment_hash}"
 
     save_snapshot(args.experiment_folder, model_checkpoint_file_name)
 
@@ -246,7 +247,7 @@ if __name__ == "__main__":
 
     start_epoch = 0
     if args.resume:
-        raise NotImplementedException(
+        raise NotImplementedError(
             "Resume checkpoint automatically. Default to exp name, unless explicitly provided"
         )
         """
@@ -270,6 +271,7 @@ if __name__ == "__main__":
         MetricTracker(
             metrics_to_track=metrics_to_track,
             load=True if start_epoch > 0 else False,
+            path=f"{model_checkpoint_file_name}_{experiment_hash}",
             tracker_name=tracker_name,
         )
         for tracker_name in ["training", "validation", "testing"]
