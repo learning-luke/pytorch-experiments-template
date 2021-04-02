@@ -297,6 +297,8 @@ if __name__ == "__main__":
             max_epochs=args.max_epochs,
             model=model,
         )
+    else:
+        stoch_depth_probability_scheduler = None
 
     ######################################################################################################### Optimisation
 
@@ -377,7 +379,7 @@ if __name__ == "__main__":
                 metric_tracker=metric_tracker_val,
             )
             scheduler.step()
-            if stoch_depth_probability_scheduler:
+            if stoch_depth_probability_scheduler is not None:
                 stoch_depth_probability_scheduler.step()
 
             metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")

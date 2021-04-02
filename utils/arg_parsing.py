@@ -64,20 +64,23 @@ def add_extra_option_args(parser):
         type=float,
         default=0.01,
         help="A float between 0 and 1.0 indicating the max percentage of utilization a GPU must have in order to "
-             "be considered "
-             "as available for usage")
+        "be considered "
+        "as available for usage",
+    )
     parser.add_argument(
         "--max_gpu_selection_memory",
         type=float,
         default=0.01,
         help="A float between 0 and 1.0 indicating the max memory percentage being used on a GPU in order to "
-             "be considered "
-             "as available for usage")
+        "be considered "
+        "as available for usage",
+    )
     parser.add_argument(
         "--excude_gpu_list",
         type=list,
         default=[],
-        help="A list of GPU IDs to exclude from the auto selection process")
+        help="A list of GPU IDs to exclude from the auto selection process",
+    )
 
     return parser
 
@@ -90,7 +93,10 @@ def process_args(parser):
         args_dict = merge_json_with_mutable_arguments(
             json_file_path=args.filepath_to_arguments_json_config, arg_dict=vars(args)
         )
-        args = DictWithDotNotation(args_dict)
+        # convert argparse.Namespace to dictionary with vars()
+        # add in the defaults as a starting point, then update with the extra parsed stuff
+        vars(args).update(args_dict)
+        args = DictWithDotNotation(vars(args))
 
     if isinstance(args, argparse.Namespace):
         args = vars(args)
