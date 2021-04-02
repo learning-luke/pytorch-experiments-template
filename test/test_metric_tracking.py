@@ -12,8 +12,9 @@ def test_compute_accuracy():
     from utils.metric_tracking import compute_accuracy
 
     batch_size = 128
-    logits = torch.randint(low=0, high=batch_size, size=(batch_size,))
-    targets = torch.zeros(logits.size())
+    n_classes = 1000
+    logits = torch.randint(low=0, high=batch_size, size=(batch_size, n_classes))
+    targets = torch.zeros(batch_size)
 
     for i, logit in enumerate(logits):
         targets[i] = torch.argmax(logit)
