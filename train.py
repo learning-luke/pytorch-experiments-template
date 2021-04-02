@@ -163,6 +163,8 @@ if __name__ == "__main__":
     argument_parser = get_base_argument_parser()
     args = process_args(argument_parser)
 
+    print("Args processed")
+
     model_args = args.model
 
     if args.gpu_ids_to_use is None:
