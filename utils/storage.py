@@ -13,14 +13,6 @@ import glob
 import tarfile
 
 
-def isfloat(x):
-    return isinstance(x, float)
-
-
-def isint(x):
-    return isinstance(x, int)
-
-
 def save_dict_in_json(path, metrics_dict, overwrite):
     """
     Saves a metrics .json file with the metrics
@@ -57,44 +49,6 @@ def load_dict_from_json(path):
         metrics_dict = json.load(json_file)
 
     return metrics_dict
-
-
-def load_metrics_dict_from_pt(path):
-    """
-    Loads the metrics in a dictionary.
-    :param log_dir: The directory in which the log is saved
-    :param metrics_file_name: The name of the metrics file
-    :return: A dict with the metrics
-    """
-
-    if not path.endswith(".pt"):
-        path = f"{path}.pt"
-
-    metrics_file_path = path
-
-    metrics_dict = torch.load(metrics_file_path)
-
-    return metrics_dict
-
-
-def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
-    """
-    Saves a metrics .pt file with the metrics
-    :param log_dir: Directory of log
-    :param metrics_file_name: Name of .csv file
-    :param metrics_dict: A dict of metrics to add in the file
-    :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
-    """
-    if not path.endswith(".pt"):
-        path = f"{path}.pt"
-
-    metrics_file_path = path
-
-    if overwrite:
-        if os.path.exists(metrics_file_path):
-            os.remove(metrics_file_path)
-
-    torch.save(metrics_dict, metrics_file_path)
 
 
 def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar"):

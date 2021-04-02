@@ -6,6 +6,8 @@ from unittest.mock import patch
 def test_get_arguments_passed_on_command_line():
     from utils.arg_parsing import get_arguments_passed_on_command_line
 
+    # test that the arguments on the command line are extracted properly
+
     arg_dict = {"thing1": "default1", "thing2": "default2", "thing3": "default3"}
 
     args_via_cmd_line = ["--thing1", "--thing2", "--thing3"]
@@ -24,6 +26,8 @@ def test_merge_json_with_mutable_arguments():
     import json
     from utils.arg_parsing import merge_json_with_mutable_arguments
 
+    # test that the json args get overwritten
+
     # dummy arg dict object
     arg_dict = {"three": 5}
 
@@ -35,8 +39,6 @@ def test_merge_json_with_mutable_arguments():
         f.write(json_obj)
 
     with patch.object(sys, "argv", ["", "--three"]):
-
-        print(sys.argv[1:])
         merged = merge_json_with_mutable_arguments("dummy.json", arg_dict)
     os.remove("dummy.json")
 
