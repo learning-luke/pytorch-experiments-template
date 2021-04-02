@@ -13,7 +13,7 @@ def merge_json_with_mutable_arguments(json_file_path, arg_dict):
         arg_dict=arg_dict
     )
     print(
-        "arguments_passed_to_command_line", arguments_passed_to_command_line, sys.argv
+        "Arguments_passed_to_command_line: ", arguments_passed_to_command_line, sys.argv
     )
     for key in config_dict.keys():
         if key in arguments_passed_to_command_line:
@@ -50,39 +50,6 @@ def get_arguments_passed_on_command_line(arg_dict):
         for option in arg_dict.keys()
         if command_line_argument.lower().replace("--", "") == option.lower()
     ]
-
-
-def add_extra_option_args(parser):
-    """
-    Argument parser
-    :return: parsed arguments
-    """
-    parser.add_argument("--model.depth", type=int, default=18)
-    parser.add_argument("--model.widen_factor", type=int, default=1)
-    parser.add_argument(
-        "--max_gpu_selection_load",
-        type=float,
-        default=0.01,
-        help="A float between 0 and 1.0 indicating the max percentage of utilization a GPU must have in order to "
-        "be considered "
-        "as available for usage",
-    )
-    parser.add_argument(
-        "--max_gpu_selection_memory",
-        type=float,
-        default=0.01,
-        help="A float between 0 and 1.0 indicating the max memory percentage being used on a GPU in order to "
-        "be considered "
-        "as available for usage",
-    )
-    parser.add_argument(
-        "--excude_gpu_list",
-        type=list,
-        default=[],
-        help="A list of GPU IDs to exclude from the auto selection process",
-    )
-
-    return parser
 
 
 def process_args(parser):

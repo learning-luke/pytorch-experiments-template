@@ -6,7 +6,7 @@ from collections import namedtuple
 
 from torch.utils.data import Subset
 
-from utils.custom_transforms import SimCLRTransform
+from datasets.custom_transforms import SimCLRTransform
 from utils.cinic_utils import enlarge_cinic_10, download_cinic
 
 ImageShape = namedtuple("ImageShape", ["channels", "width", "height"])
@@ -262,7 +262,9 @@ def load_dataset(
     ###
 
     train_set, val_set, test_set, num_labels = dataloader.get_data(
-        data_filepath, val_set_percentage=val_set_percentage, download=download
+        os.path.join(data_filepath, dataset),
+        val_set_percentage=val_set_percentage,
+        download=download,
     )
 
     train_loader = torch.utils.data.DataLoader(

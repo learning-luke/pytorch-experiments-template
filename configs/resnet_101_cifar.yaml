@@ -1,3 +1,0 @@
-dataset_name: cifar10
-dataset_filepath: ~/datasets/cifar10
-model.batch_size: 2

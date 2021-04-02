@@ -92,17 +92,19 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
+    def __init__(
+        self, block, num_blocks, num_classes=10, dataset_name=None, in_channels=3
+    ):
         super(ResNet, self).__init__()
         self.in_planes = 64
 
-        if variant == "imagenet":
+        if dataset_name == "imagenet":
             self.conv1 = nn.Conv2d(
                 in_channels,
                 64,
-                kernel_size=7 if variant == "imagenet" else 3,
-                stride=2 if variant == "imagenet" else 1,
-                padding=3 if variant == "imagenet" else 1,
+                kernel_size=7,
+                stride=2,
+                padding=3,
                 bias=False,
             )
         else:
@@ -115,7 +117,7 @@ class ResNet(nn.Module):
         #  this pooling is only needed for imagenet-sized images
         self.maxpool = (
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-            if variant == "imagenet"
+            if dataset_name == "imagenet"
             else nn.Identity()
         )
 
@@ -148,37 +150,61 @@ class ResNet(nn.Module):
         return logits, (layer0, maxpool, layer1, layer2, layer3, layer4, avgpool)
 
 
-def ResNet9(num_classes=10, variant="cifar10", **kwargs):
+def ResNet9(num_classes=10, dataset_name="cifar10", **kwargs):
     return ResNet(
-        BasicBlock, [1, 1, 1, 1], num_classes=num_classes, variant=variant, **kwargs
+        BasicBlock,
+        [1, 1, 1, 1],
+        num_classes=num_classes,
+        dataset_name=dataset_name,
+        **kwargs
     )
 
 
-def ResNet18(num_classes=10, variant="cifar10", **kwargs):
+def ResNet18(num_classes=10, dataset_name="cifar10", **kwargs):
     return ResNet(
-        BasicBlock, [2, 2, 2, 2], num_classes=num_classes, variant=variant, **kwargs
+        BasicBlock,
+        [2, 2, 2, 2],
+        num_classes=num_classes,
+        dataset_name=dataset_name,
+        **kwargs
     )
 
 
-def ResNet34(num_classes=10, variant="cifar10", **kwargs):
+def ResNet34(num_classes=10, dataset_name="cifar10", **kwargs):
     return ResNet(
-        BasicBlock, [3, 4, 6, 3], num_classes=num_classes, variant=variant, **kwargs
+        BasicBlock,
+        [3, 4, 6, 3],
+        num_classes=num_classes,
+        dataset_name=dataset_name,
+        **kwargs
     )
 
 
-def ResNet50(num_classes=10, variant="cifar10", **kwargs):
+def ResNet50(num_classes=10, dataset_name="cifar10", **kwargs):
     return ResNet(
-        Bottleneck, [3, 4, 6, 3], num_classes=num_classes, variant=variant, **kwargs
+        Bottleneck,
+        [3, 4, 6, 3],
+        num_classes=num_classes,
+        dataset_name=dataset_name,
+        **kwargs
     )
 
 
-def ResNet101(num_classes=10, variant="cifar10", **kwargs):
+def ResNet101(num_classes=10, dataset_name="cifar10", **kwargs):
     return ResNet(
-        Bottleneck, [3, 4, 23, 3], num_classes=num_classes, variant=variant, **kwargs
+        Bottleneck,
+        [3, 4, 23, 3],
+        num_classes=num_classes,
+        dataset_name=dataset_name,
+        **kwargs
     )
 
 
-def ResNet152(num_classes=10, variant="cifar10", **kwargs):
+def ResNet152(num_classes=10, dataset_name="cifar10", **kwargs):
     return ResNet(
-        Bottleneck, [3, 8, 36, 3], num_classes=num_classes, variant=variant, **kwargs
+        Bottleneck,
+        [3, 8, 36, 3],
+        num_classes=num_classes,
+        dataset_name=dataset_name,
+        **kwargs
     )

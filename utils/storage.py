@@ -9,6 +9,8 @@ from collections import OrderedDict
 import scipy
 import json
 import os
+import glob
+import tarfile
 
 
 def isfloat(x):
@@ -126,17 +128,22 @@ def restore_model(restore_fields, path, epoch=None, device="cpu"):
     :return: Nothing, only restore the network and optimizer.
     """
 
-    checkpoint_name = 'latest_ckpt.pth.tar' if epoch==None else '{}_ckpt.pth.tar'.format(epoch)
+    checkpoint_name = (
+        "latest_ckpt.pth.tar" if epoch == None else "{}_ckpt.pth.tar".format(epoch)
+    )
 
     if os.path.isfile("{}/{}".format(path, checkpoint_name)):
         checkpoint = torch.load(
-            "{}/{}".format(path, checkpoint_name), map_location=lambda storage, loc: storage
+            "{}/{}".format(path, checkpoint_name),
+            map_location=lambda storage, loc: storage,
         )
 
         for name, field in restore_fields.items():
             new_state_dict = OrderedDict()
             for k, v in checkpoint[name].items():
-                if "module" in k and (device == "cpu" or torch.cuda.device_count() == 1):
+                if "module" in k and (
+                    device == "cpu" or torch.cuda.device_count() == 1
+                ):
                     name = k.replace("module.", "")  # remove module.
                 else:
                     name = k
@@ -156,12 +163,6 @@ def build_experiment_folder(experiment_name, log_path, save_images=True):
     """
     saved_models_filepath = os.path.join(
         log_path, experiment_name.replace("%.%", "/"), "saved_models"
-    )
-    logs_filepath = os.path.join(
-        log_path, experiment_name.replace("%.%", "/"), "summary_logs"
-    )
-    images_filepath = os.path.join(
-        log_path, experiment_name.replace("%.%", "/"), "images"
     )
 
     if not os.path.exists(logs_filepath):
@@ -229,3 +230,21 @@ def print_network_stats(net):
             trainable_params_count, trainable_weights_count
         )
     )
+
+
+def save_snapshot(experiment_folder, experiment_name):
+    # Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your
+    # many experiments was actually quite good but you forgot what you did
+
+    os.makedirs(f"{experiment_folder}/code_snapshots/", exist_ok=True)
+
+    snapshot_filename = (
+        f"{experiment_folder}/code_snapshots/{experiment_name}_snapshot.tar.gz"
+    )
+    filetypes_to_include = [".py"]
+    all_files = []
+    for filetype in filetypes_to_include:
+        all_files += glob.glob("**/*.py", recursive=True)
+    with tarfile.open(snapshot_filename, "w:gz") as tar:
+        for file in all_files:
+            tar.add(file)
