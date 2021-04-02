@@ -3,450 +3,343 @@ import json
 import os
 import numpy as np
 import tqdm
-
-
-from models import *
-from utils.arg_parsing import add_extra_option_args, process_args
-from utils.gpu_selection_utils import select_devices
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision.utils import save_image
+import torch.backends.cudnn as cudnn
+from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
+from utils.data_loaders import load_dataset
 import random
 import glob
 import tarfile
+from models import model_zoo
+from utils.torchsummary import summary
+from utils.metric_tracking import MetricTracker, compute_accuracy
 
 
-def get_base_argument_parser():
+def parse_args(verbose=True):
+    """
+    Argument parser
+    :return: parsed arguments
+    """
     parser = argparse.ArgumentParser()
     # data and I/O
-    parser.add_argument("--num_workers", type=int, default=8)
+    parser.add_argument("-data", "--dataset", type=str, default="cifar10")
+    parser.add_argument("-loc", "--data_loc", type=str, default="../data/Cifar-10")
+    parser.add_argument("-batch", "--batch_size", type=int, default=20)
+    parser.add_argument("-numw", "--num_workers", type=int, default=1)
+    parser.add_argument("-tbatch", "--test_batch_size", type=int, default=100)
+    parser.add_argument("-x", "--max_epochs", type=int, default=200)
+    parser.add_argument("-s", "--seed", type=int, default=0)
+    parser.add_argument("-resume", "--resume", dest="resume", action="store_true")
+    parser.set_defaults(resume=False)
     parser.add_argument(
-        "--num_gpus_to_use",
-        type=int,
-        default=0,
-        help="The number of GPUs to use, use 0 to enable CPU",
+        "-dist", "--distributed", dest="distributed", action="store_true"
     )
-
-    parser.add_argument(
-        "--gpu_ids_to_use",
-        type=str,
-        default=None,
-        help="The IDs of the exact GPUs to use, this bypasses num_gpus_to_use if used",
-    )
-
-    parser.add_argument("--dataset_name", type=str, default="cifar10")
-    parser.add_argument("--data_filepath", type=str, default="../data/cifar10")
-    parser.add_argument("--model.batch_size", type=int, default=256)
-    parser.add_argument("--model.eval_batch_size", type=int, default=100)
-
-    parser.add_argument("--max_epochs", type=int, default=200)
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--resume", default=False, dest="resume", action="store_true")
-    parser.add_argument("--test", dest="test", default=True, action="store_true")
+    parser.set_defaults(distributed=False)
+    parser.add_argument("-test", "--test", dest="test", action="store_true")
+    parser.set_defaults(distributed=False)
 
     # logging
-    parser.add_argument("--experiment_name", type=str, default="dev")
-    parser.add_argument("--logs_path", type=str, default="log")
-
-    parser.add_argument("--filepath_to_arguments_json_config", type=str, default=None)
-
-    parser.add_argument("--save", dest="save", default=True, action="store_true")
-    parser.add_argument("--nosave", dest="save", default=True, action="store_false")
+    parser.add_argument("-en", "--exp_name", type=str, default="dev")
+    parser.add_argument("-o", "--logs_path", type=str, default="log")
+    parser.add_argument("-save", "--save", dest="save", action="store_true")
+    parser.add_argument("-nosave", "--nosave", dest="save", action="store_false")
+    parser.set_defaults(save=True)
 
     # model
-    parser.add_argument("--model.type", type=str, default="resnet18")
-    parser.add_argument("--model.dropout_rate", type=float, default=0.3)
-    parser.add_argument("--model.stoch_depth_probability", type=float, default=None)
-
-    parser.add_argument("--val_set_percentage", type=float, default=0.1)
-    # optimization
-    parser.add_argument("--learning_rate", type=float, default=0.1)
     parser.add_argument(
+        "-model",
+        "--model",
+        type=str,
+        default="WideResNet_40_2",
+        choices=model_zoo.keys(),
+    )
+    parser.add_argument("-dropout", "--dropout_rate", type=float, default=0.3)
+
+    # optimization
+    parser.add_argument("-l", "--learning_rate", type=float, default=0.1)
+    parser.add_argument(
+        "-sched",
         "--scheduler",
         type=str,
         default="MultiStep",
         help="Scheduler for learning rate annealing: CosineAnnealing | MultiStep",
     )
     parser.add_argument(
+        "-mile",
         "--milestones",
         type=int,
         nargs="+",
         default=[60, 120, 160],
         help="Multi step scheduler annealing milestones",
     )
-    parser.add_argument("--optim", type=str, default="SGD", help="Optimizer?")
+    parser.add_argument("-optim", "--optim", type=str, default="SGD", help="Optimizer?")
 
-    parser.add_argument("--weight_decay", type=float, default=5e-4)
-    parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=5e-4)
+    parser.add_argument("-mom", "--momentum", type=float, default=0.9)
 
-    parser = add_extra_option_args(parser)
+    args = parser.parse_args()
+    print("input args:\n", json.dumps(vars(args), indent=4, separators=(",", ":")))
+    return args
 
-    return parser
 
+args = parse_args()
+
+
+######################################################################################################### Admin
+saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(
+    experiment_name=args.exp_name, log_path=args.logs_path
+)
+
+######################################################################################################### Data
+
+train_loader, val_loader, train_set, val_set, data_shape = load_dataset(
+    args.dataset,
+    args.data_loc,
+    batch_size=args.batch_size,
+    test_batch_size=args.test_batch_size,
+    num_workers=args.num_workers,
+    download=False,
+    test=args.test,
+)
+
+######################################################################################################### Determinism
+# Seeding can be annoying in pytorch at the moment. Based on my experience, the below means of seeding
+# allows for deterministic experimentation.
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)  # set seed
+random.seed(args.seed)
+device = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
+args.device = device
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(args.seed)
+    torch.backends.cudnn.deterministic = True
+
+# Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your
+# many experiments was actually quite good but you forgot what you did
+
+snapshot_filename = "{}/snapshot.tar.gz".format(saved_models_filepath)
+filetypes_to_include = [".py"]
+all_files = []
+for filetype in filetypes_to_include:
+    all_files += glob.glob("**/*.py", recursive=True)
+with tarfile.open(snapshot_filename, "w:gz") as tar:
+    for file in all_files:
+        tar.add(file)
+
+######################################################################################################### Model
+
+num_classes = 100 if args.dataset.lower() == "cifar100" else 10
+net = model_zoo[args.model](
+    num_classes=num_classes,
+    dropRate=args.dropout_rate,
+)
+if args.distributed:
+    net = nn.DataParallel(net)
+net = net.to(device)
+summary(net, data_shape, batch_size=args.batch_size)
+
+######################################################################################################### Optimisation
+
+params = net.parameters()
+criterion = nn.CrossEntropyLoss()
+
+if args.optim.lower() == "sgd":
+    optimizer = optim.SGD(
+        params,
+        lr=args.learning_rate,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
+    )
+else:
+    optimizer = optim.Adam(
+        params, lr=args.learning_rate, amsgrad=True, weight_decay=args.weight_decay
+    )
+
+if args.scheduler == "CosineAnnealing":
+    scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=args.max_epochs, eta_min=0)
+else:
+    scheduler = MultiStepLR(optimizer, milestones=args.milestones, gamma=0.2)
+
+######################################################################################################### Restoring
+
+restore_fields = {
+    "net": net,
+    "optimizer": optimizer,
+    "scheduler": scheduler,
+}
+
+start_epoch = 0
+if args.resume:
+    resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
+    if resume_epoch == -1:
+        print("Failed to load from {}/ckpt.pth.tar".format(saved_models_filepath))
+    else:
+        start_epoch = resume_epoch + 1
+
+######################################################################################################### Metric
+
+metrics_to_track = {
+    "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
+    "accuracy": compute_accuracy,
+}
+metric_tracker_train = MetricTracker(
+    metrics_to_track=metrics_to_track,
+    load=True if start_epoch > 0 else False,
+    path="{}/metrics_train.pt".format(logs_filepath),
+)
+metric_tracker_test = MetricTracker(
+    metrics_to_track=metrics_to_track,
+    load=True if start_epoch > 0 else False,
+    path="{}/metrics_test.pt".format(logs_filepath),
+)
 
 ######################################################################################################### Training
 
 
-def train_iter(metric_tracker, model, x, y, iteration, epoch, set_name):
+def train_iter(net, x, y, iteration, epoch, set_name):
+    global metric_tracker_train
+
     inputs, targets = x.to(device), y.to(device)
 
-    model = model.train()
+    net = net.train()
 
-    logits, features = model(inputs)
+    logits, activations = net(inputs)
 
     loss = criterion(input=logits, target=targets)
-    metric_tracker.push(epoch, iteration, logits, targets)
+    metric_tracker_train.push(epoch, iteration, logits, targets)
 
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
-    log_string = (
-        f"{args.experiment_name}, {set_name}: {iteration}; "
-        f"{metric_tracker.get_current_iteration_metric_trace_string()}"
+    log_string = "{}, {}: {}; {}".format(
+        args.exp_name,
+        set_name,
+        iteration,
+        "".join(
+            [
+                (
+                    "{}: {:0.4f}; ".format(key, value[-1])
+                    if (key != "epochs" and key != "iterations")
+                    else ""
+                )
+                for key, value in metric_tracker_train.metrics.items()
+            ]
+        ),
     )
 
     return log_string
 
 
-def eval_iter(metric_tracker, model, x, y, iteration, epoch, set_name):
+def eval_iter(net, x, y, iteration, epoch, set_name):
+    global metric_tracker_test
     x, targets = x.to(device), y.to(device)
 
-    model = model.eval()
+    net = net.eval()
 
-    logits, features = model(x)
+    logits, activations = net(x)
 
-    metric_tracker.push(epoch, iteration, logits, targets)
+    metric_tracker_test.push(epoch, iteration, logits, targets)
 
-    log_string = (
-        f"{args.experiment_name}, {set_name}: {iteration}; "
-        f"{metric_tracker.get_current_iteration_metric_trace_string()}"
+    log_string = "{}, {}: {}; {}".format(
+        args.exp_name,
+        set_name,
+        iteration,
+        "".join(
+            [
+                (
+                    "{}: {:0.4f}; ".format(key, value[-1])
+                    if (key != "epochs" and key != "iterations")
+                    else ""
+                )
+                for key, value in metric_tracker_test.metrics.items()
+            ]
+        ),
     )
 
     return log_string
 
 
-def run_epoch(epoch, model, training, metric_tracker, data_loader):
-    training_iterations = epoch * len(data_loader)
+train_iterations = 0
 
-    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
 
-        for batch_idx, (inputs, targets) in enumerate(data_loader):
-            if training:
+def run_epoch(epoch, net, train=True):
+    global train_iterations
+    identifier = "train" if train else "test"
+    loader = train_loader if train else val_loader
+    with tqdm.tqdm(initial=0, total=len(loader)) as pbar:
+
+        for batch_idx, (inputs, targets) in enumerate(loader):
+
+            if train:
+
                 log_string = train_iter(
-                    model=model,
+                    net=net,
                     x=inputs,
                     y=targets,
-                    iteration=training_iterations,
+                    iteration=train_iterations,
                     epoch=epoch,
-                    set_name=metric_tracker.tracker_name,
-                    metric_tracker=metric_tracker,
+                    set_name=identifier,
                 )
-                training_iterations += 1
+                train_iterations += 1
             else:
                 log_string = eval_iter(
-                    model=model,
+                    net=net,
                     x=inputs,
                     y=targets,
-                    iteration=training_iterations,
+                    iteration=train_iterations,
                     epoch=epoch,
-                    set_name=metric_tracker.tracker_name,
-                    metric_tracker=metric_tracker,
+                    set_name=identifier,
                 )
 
             pbar.set_description(log_string)
             pbar.update()
 
-            if batch_idx > 5:
-                break
-
 
 if __name__ == "__main__":
-    argument_parser = get_base_argument_parser()
-    args = process_args(argument_parser)
-
-    print("Args processed")
-
-    model_args = args.model
-
-    if args.gpu_ids_to_use is None:
-        select_devices(
-            args.num_gpus_to_use,
-            max_load=args.max_gpu_selection_load,
-            max_memory=args.max_gpu_selection_memory,
-            exclude_gpu_ids=args.excude_gpu_list,
-        )
-    else:
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids_to_use.replace(" ", ",")
-
-    from utils.dataset_loading_hub import load_dataset
-
-    from models.wresnet import WideResNet
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    from torchvision.utils import save_image
-    import torch.backends.cudnn as cudnn
-    from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-    from utils.metric_tracking import MetricTracker, compute_accuracy
-
-    ######################################################################################################### Admin
-    saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(
-        experiment_name=args.experiment_name, log_path=args.logs_path
-    )
-
-    ######################################################################################################### Data
-
-    (
-        train_set_loader,
-        val_set_loader,
-        test_set_loader,
-        train_set,
-        val_set,
-        test_set,
-        data_shape,
-        num_classes,
-    ) = load_dataset(
-        args.dataset_name,
-        args.data_filepath,
-        batch_size=model_args.batch_size,
-        test_batch_size=model_args.eval_batch_size,
-        num_workers=args.num_workers,
-        download=True,
-        val_set_percentage=args.val_set_percentage,
-    )
-
-    ######################################################################################################### Determinism
-    # Seeding can be annoying in pytorch at the moment. Based on my experience, the below means of seeding
-    # allows for deterministic experimentation.
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)  # set seed
-    random.seed(args.seed)
-    device = (
-        torch.cuda.current_device()
-        if torch.cuda.is_available() and args.num_gpus_to_use > 0
-        else "cpu"
-    )
-    args.device = device
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(args.seed)
-        torch.backends.cudnn.deterministic = True
-
-    # Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your
-    # many experiments was actually quite good but you forgot what you did
-
-    snapshot_filename = "{}/snapshot.tar.gz".format(saved_models_filepath)
-    filetypes_to_include = [".py"]
-    all_files = []
-    for filetype in filetypes_to_include:
-        all_files += glob.glob("**/*.py", recursive=True)
-    with tarfile.open(snapshot_filename, "w:gz") as tar:
-        for file in all_files:
-            tar.add(file)
-
-    ######################################################################################################### Model
-
-    model = get_model(
-        model_type=args.model.type,
-        num_classes=num_classes,
-        dataset_name=args.dataset_name,
-        stoch_depth_probability=args.model.stoch_depth_probability,
-    ).to(device)
-
-    # alternatively one can define a model directly as follows
-    # ```
-    # model = ResNet18(num_classes=num_classes, variant=args.dataset_name).to(device)
-    # ```
-
-    if args.num_gpus_to_use > 1:
-        model = nn.parallel.DistributedDataParallel(
-            model
-        )  # more efficient version of DataParallel
-
-    model = model.to(device)
-
-    ######################################################################################################### Stochastic Depth
-    if args.model.stoch_depth_probability is not None:
-
-        class StochasticDepthProbabilitySchedulerLinear:
-            def __init__(
-                self,
-                stoch_depth_probability=1.0,
-                final_stoch_depth_probability=0.5,
-                cur_epoch=0,
-                max_epochs=args.max_epochs,
-                model=None,
-            ):
-                self.stoch_depth_probability = stoch_depth_probability
-                self.schedule = torch.linspace(
-                    stoch_depth_probability, final_stoch_depth_probability, max_epochs
-                )
-                self.cur_epoch = cur_epoch
-
-            def step(self):
-                new_stoch_depth_probability = self.schedule[self.cur_epoch]
-
-                for module in model.modules():
-                    if isinstance(module, StochasticDepthBlock):
-                        module.stoch_depth_probability = new_stoch_depth_probability
-
-                self.cur_epoch += 1
-
-        stoch_depth_probability_scheduler = StochasticDepthProbabilitySchedulerLinear(
-            stoch_depth_probability=1.0,
-            final_stoch_depth_probability=0.5,
-            cur_epoch=0,
-            max_epochs=args.max_epochs,
-            model=model,
-        )
-    else:
-        stoch_depth_probability_scheduler = None
-
-    ######################################################################################################### Optimisation
-
-    params = model.parameters()
-    criterion = nn.CrossEntropyLoss()
-
-    if args.optim.lower() == "sgd":
-        optimizer = optim.SGD(
-            params,
-            lr=args.learning_rate,
-            momentum=args.momentum,
-            weight_decay=args.weight_decay,
-        )
-    else:
-        optimizer = optim.Adam(
-            params, lr=args.learning_rate, weight_decay=args.weight_decay
-        )
-
-    if args.scheduler == "CosineAnnealing":
-        scheduler = CosineAnnealingLR(
-            optimizer=optimizer, T_max=args.max_epochs, eta_min=0
-        )
-    else:
-        scheduler = MultiStepLR(optimizer, milestones=args.milestones, gamma=0.2)
-
-    ######################################################################################################### Restoring
-
-    restore_fields = {
-        "model": model,
-        "optimizer": optimizer,
-        "scheduler": scheduler,
-    }
-
-    start_epoch = 0
-    if args.resume:
-        resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
-        if resume_epoch == -1:
-            raise IOError(
-                f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
-                f"latest checkpoint is missing, please remove the --resume flag to try training from scratch"
-            )
-        else:
-            start_epoch = resume_epoch + 1
-
-    ######################################################################################################### Metric
-
-    metrics_to_track = {
-        "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
-        "accuracy": compute_accuracy,
-    }
-    metric_tracker_train, metric_tracker_val, metric_tracker_test = (
-        MetricTracker(
-            metrics_to_track=metrics_to_track,
-            load=True if start_epoch > 0 else False,
-            path=f"{logs_filepath}/metrics_{tracker_name}.pt",
-            tracker_name=tracker_name,
-        )
-        for tracker_name in ["training", "validation", "testing"]
-    )
-
-    train_iterations = 0
-
     with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
         for epoch in range(start_epoch, args.max_epochs):
 
-            run_epoch(
-                epoch,
-                data_loader=train_set_loader,
-                model=model,
-                training=True,
-                metric_tracker=metric_tracker_train,
-            )
-            run_epoch(
-                epoch,
-                data_loader=val_set_loader,
-                model=model,
-                training=False,
-                metric_tracker=metric_tracker_val,
-            )
+            run_epoch(epoch, net=net, train=True)
+            run_epoch(epoch, net=net, train=False)
             scheduler.step()
-            if stoch_depth_probability_scheduler is not None:
-                stoch_depth_probability_scheduler.step()
 
-            metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")
-            metric_tracker_val.plot(path=f"{images_filepath}/val/metrics.png")
+            metric_tracker_train.plot(
+                path="{}/train/metrics.png".format(images_filepath)
+            )
+            metric_tracker_test.plot(path="{}/test/metrics.png".format(images_filepath))
             metric_tracker_train.save()
-            metric_tracker_val.save()
+            metric_tracker_test.save()
 
             ################################################################################ Saving models
             if args.save:
                 state = {
                     "args": args,
                     "epoch": epoch,
-                    "model": model.state_dict(),
+                    "net": net.state_dict(),
                     "optimizer": optimizer.state_dict(),
                     "scheduler": scheduler.state_dict(),
                 }
-
-                current_epoch_filename = "{}_ckpt.pth.tar".format(epoch)
-                latest_epoch_filename = "latest_ckpt.pth.tar".format(epoch)
-
                 epoch_pbar.set_description(
-                    "Saving at {}/{}".format(
-                        saved_models_filepath, current_epoch_filename
-                    )
+                    "Saving at {}/ckpt.pth.tar".format(saved_models_filepath)
                 )
-
+                filename = "ckpt.pth.tar".format(epoch)
+                previous_save = "{}/ckpt.pth.tar".format(
+                    saved_models_filepath, epoch - 1
+                )
+                if os.path.isfile(previous_save):
+                    os.remove(previous_save)
                 save_checkpoint(
                     state=state,
                     directory=saved_models_filepath,
-                    filename=current_epoch_filename,
-                    is_best=False,
-                )
-
-                epoch_pbar.set_description(
-                    "Saving at {}/{}".format(
-                        saved_models_filepath, latest_epoch_filename
-                    )
-                )
-
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=latest_epoch_filename,
+                    filename=filename,
                     is_best=False,
                 )
             ############################################################################################################
 
             epoch_pbar.set_description("")
             epoch_pbar.update(1)
-
-        if args.test:
-            if args.val_set_percentage >= 0.0:
-                best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
-                    evaluation_metric=np.argmax, metric_name="accuracy_mean"
-                )
-                resume_epoch = restore_model(
-                    restore_fields,
-                    path=saved_models_filepath,
-                    epoch=best_epoch_val_model,
-                )
-
-            run_epoch(
-                epoch,
-                model=model,
-                training=False,
-                data_loader=test_set_loader,
-                metric_tracker=metric_tracker_test,
-            )
-
-            metric_tracker_test.save()
