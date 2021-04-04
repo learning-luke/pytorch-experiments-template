@@ -38,6 +38,7 @@ jobs:
     - name: Install dependencies
       run: |
         conda install python=${{ matrix.python-version }}
+        pip install pytest
         conda install git tqdm pytest matplotlib seaborn GPUtil; conda install -c anaconda scipy ;
         conda install pytorch torchvision torchaudio cpuonly -c pytorch
         conda info
