@@ -27,7 +27,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.1.1   
+      uses: conda-incubator/setup-miniconda@v2.1.1
+      with:
+        miniforge-version: latest
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
