@@ -1,8 +1,10 @@
 import os
+import git
 import json
+import rich
+import time
 import tqdm
 import random
-import hashlib
 import logging
 import argparse
 import datetime
@@ -13,6 +15,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+
+from rich import print
+from rich.live import Live
 
 from torchvision.utils import save_image
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
@@ -25,7 +30,6 @@ from utils.storage import (
     build_experiment_folder,
     save_checkpoint,
     restore_model,
-    save_snapshot,
 )
 from datasets.dataset_loading_hub import load_dataset
 
@@ -99,53 +103,70 @@ def get_base_argument_parser():
 
 
 def train(epoch, data_loader, model, metric_tracker):
-    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+
+    n_batches = len(data_loader)
+
+    with Live(metric_tracker.table, refresh_per_second=1):
 
         for batch_idx, (inputs, targets) in enumerate(data_loader):
+            batch_time = time.time()
+            data_time = time.time()
+
             inputs, targets = inputs.to(device), targets.to(device)
+            data_time = time.time() - data_time
 
             model = model.train()
 
             logits, features = model(inputs)
 
             loss = criterion(input=logits, target=targets)
-            metric_tracker.push(epoch, batch_idx, logits, targets)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            log_string = (
-                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
-                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
-            )
+            batch_time = time.time() - batch_time
 
-            pbar.set_description(log_string)
-            pbar.update()
+            metric_tracker.push(
+                epoch,
+                batch_idx,
+                data_time,
+                batch_time,
+                str(datetime.timedelta(seconds=batch_time * (n_batches - batch_idx))),
+                logits,
+                targets,
+            )
 
             if batch_idx >= 3:
                 break
 
 
 def eval(epoch, data_loader, model, metric_tracker):
-    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+    n_batches = len(data_loader)
+    with Live(metric_tracker.table, refresh_per_second=1):
 
         for batch_idx, (inputs, targets) in enumerate(data_loader):
+            batch_time = time.time()
+            data_time = time.time()
+
             inputs, targets = inputs.to(device), targets.to(device)
+            data_time = time.time() - data_time
 
             model = model.eval()
 
             logits, features = model(inputs)
 
-            metric_tracker.push(epoch, batch_idx, logits, targets)
+            batch_time = time.time() - batch_time
 
-            log_string = (
-                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
-                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
+            metric_tracker.push(
+                epoch,
+                batch_idx,
+                data_time,
+                batch_time,
+                str(datetime.timedelta(seconds=batch_time * (n_batches - batch_idx))),
+                logits,
+                targets,
             )
-
-            pbar.set_description(log_string)
-            pbar.update()
 
 
 if __name__ == "__main__":
@@ -156,10 +177,13 @@ if __name__ == "__main__":
         args.gpu_ids_to_use, args.num_gpus_to_use
     )
 
-    experiment_hash = str(hashlib.md5(str(datetime.datetime.now())))
-    model_checkpoint_file_name = f"{args.experiment_name}_{args.model.type}_{args.dataset_name}_{args.seed}_{experiment_hash}"
+    print(
+        f"[red bold] WARNING: It looks like you're running an experiment. Make sure you commit :smiley:"
+    )
 
-    save_snapshot(args.experiment_folder, model_checkpoint_file_name)
+    repo = git.Repo()
+    sha = repo.head.object.hexsha
+    model_checkpoint_file_name = f"{args.experiment_name}_{args.model.type}_{args.dataset_name}_{args.seed}_{sha}"
 
     ######################################################################################################### Data
 
@@ -271,7 +295,7 @@ if __name__ == "__main__":
         MetricTracker(
             metrics_to_track=metrics_to_track,
             load=True if start_epoch > 0 else False,
-            path=f"{model_checkpoint_file_name}_{experiment_hash}",
+            path=f"{model_checkpoint_file_name}_{sha}",
             tracker_name=tracker_name,
         )
         for tracker_name in ["training", "validation", "testing"]

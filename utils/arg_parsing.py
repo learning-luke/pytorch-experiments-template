@@ -1,7 +1,7 @@
 import argparse
 import json
 from collections import namedtuple, defaultdict
-import pprint
+from rich import print
 from utils.storage import load_dict_from_json
 import sys
 
@@ -86,6 +86,6 @@ def process_args(parser):
             args_tree_like_structure[key] = value
 
     args = DictWithDotNotation(args_tree_like_structure)
-    pprint.pprint(args, indent=4)
+    print(args)
 
     return args

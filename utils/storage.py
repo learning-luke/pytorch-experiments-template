@@ -180,21 +180,3 @@ def print_network_stats(net):
     print(
         f"{trainable_params_count} parameters and {trainable_weights_count} weights are trainable"
     )
-
-
-def save_snapshot(experiment_folder, experiment_name):
-    # Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your
-    # many experiments was actually quite good but you forgot what you did
-
-    os.makedirs(f"{experiment_folder}/code_snapshots/", exist_ok=True)
-
-    snapshot_filename = (
-        f"{experiment_folder}/code_snapshots/{experiment_name}_snapshot.tar.gz"
-    )
-    filetypes_to_include = [".py"]
-    all_files = []
-    for filetype in filetypes_to_include:
-        all_files += glob.glob("**/*.py", recursive=True)
-    with tarfile.open(snapshot_filename, "w:gz") as tar:
-        for file in all_files:
-            tar.add(file)
