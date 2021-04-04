@@ -83,7 +83,7 @@ Some notable features include:
 - **-model, --model (int)**
    - Which model to train
    - 'resnet', 'preact_resnet', 'densenet', 'wresnet', 'cnn'
-- **-dep, --resdepth (int)**
+- **-dep, --depth (int)**
    - ResNet depth
    - For resnet, options are: 18, 34, 50, 101
    - For preact_resnet, options are: 18, 34, 50, 101
