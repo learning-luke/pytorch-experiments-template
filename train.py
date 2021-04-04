@@ -28,7 +28,6 @@ from utils.arg_parsing import process_args
 from utils.gpu_selection_utils import select_devices
 from utils.storage import (
     build_experiment_folder,
-    save_checkpoint,
     restore_model,
 )
 from datasets.dataset_loading_hub import load_dataset
@@ -168,6 +167,9 @@ def eval(epoch, data_loader, model, metric_tracker):
                 targets,
             )
 
+            if batch_idx >= 3:
+                break
+
 
 if __name__ == "__main__":
     argument_parser = get_base_argument_parser()
@@ -183,7 +185,7 @@ if __name__ == "__main__":
 
     repo = git.Repo()
     sha = repo.head.object.hexsha
-    model_checkpoint_file_name = f"{args.experiment_name}_{args.model.type}_{args.dataset_name}_{args.seed}_{sha}"
+    model_checkpoint_file_name = f"{args.experiment_name}_{args.model.type}_{args.dataset_name}_{args.seed}_{sha[:7]}"
 
     ######################################################################################################### Data
 
@@ -295,71 +297,64 @@ if __name__ == "__main__":
         MetricTracker(
             metrics_to_track=metrics_to_track,
             load=True if start_epoch > 0 else False,
-            path=f"{model_checkpoint_file_name}_{sha}",
+            path=f"{args.experiment_folder}/{model_checkpoint_file_name}.pt",
             tracker_name=tracker_name,
         )
         for tracker_name in ["training", "validation", "testing"]
     )
 
-    with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
-        for epoch in range(start_epoch, args.max_epochs):
+    for epoch in range(start_epoch, args.max_epochs):
 
-            train(
-                epoch,
-                data_loader=train_set_loader,
-                model=model,
-                metric_tracker=metric_tracker_train,
+        train(
+            epoch,
+            data_loader=train_set_loader,
+            model=model,
+            metric_tracker=metric_tracker_train,
+        )
+        eval(
+            epoch,
+            data_loader=val_set_loader,
+            model=model,
+            metric_tracker=metric_tracker_val,
+        )
+        scheduler.step()
+
+        ########################################################################################## Saving models
+
+        state = {
+            "args": args,
+            "epoch": epoch,
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
+            "train_metrics": metric_tracker_train.metrics,
+            "val_metrics": metric_tracker_val.metrics,
+        }
+
+        torch.save(
+            state,
+            f"{args.experiment_folder}/{model_checkpoint_file_name}.checkpoint",
+        )
+
+        metric_tracker_train.save()
+        metric_tracker_val.save()
+
+    if args.test:
+        if args.val_set_percentage >= 0.0:
+            best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
+                evaluation_metric=np.argmax, metric_name="accuracy_mean"
             )
-            eval(
-                epoch,
-                data_loader=val_set_loader,
-                model=model,
-                metric_tracker=metric_tracker_val,
-            )
-            scheduler.step()
-
-            ########################################################################################## Saving models
-
-            epoch_pbar.set_description(
-                f"Saving at {args.experiment_folder}/{model_checkpoint_file_name}"
-            )
-
-            state = {
-                "args": args,
-                "epoch": epoch,
-                "model": model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "scheduler": scheduler.state_dict(),
-                "train_metrics": metric_tracker_train.metrics,
-                "val_metrics": metric_tracker_val.metrics,
-            }
-
-            save_checkpoint(
-                state=state,
-                directory=args.experiment_folder,
-                filename=model_checkpoint_file_name,
-                is_best=False,
-            )
-
-            epoch_pbar.set_description("")
-            epoch_pbar.update(1)
-
-        if args.test:
-            if args.val_set_percentage >= 0.0:
-                best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
-                    evaluation_metric=np.argmax, metric_name="accuracy_mean"
-                )
-                resume_epoch = restore_model(
-                    restore_fields,
-                    path=args.experiment_folder,
-                    epoch=best_epoch_val_model,
-                )
-
-            eval(
-                epoch,
-                model=model,
-                data_loader=test_set_loader,
-                metric_tracker=metric_tracker_test,
+            resume_epoch = restore_model(
+                restore_fields,
+                path=args.experiment_folder,
+                epoch=best_epoch_val_model,
             )
 
-            metric_tracker_test.save()
+        eval(
+            epoch,
+            model=model,
+            data_loader=test_set_loader,
+            metric_tracker=metric_tracker_test,
+        )
+
+        metric_tracker_test.save()

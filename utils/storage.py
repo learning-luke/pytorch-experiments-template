@@ -51,25 +51,6 @@ def load_dict_from_json(path):
     return metrics_dict
 
 
-def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar"):
-    """
-    Checkpoint saving utility, to ensure that the checkpoints are saved in the right place
-    :param state: this is what gets saved.
-    :param is_best: if this is the current best model, save a copy of it with a `best_`
-    :param directory: where to save
-    :param filename: using this filename
-    :return: nothing, just save things
-    """
-    save_path = f"{directory}/{filename}" if directory != "" else filename
-    torch.save(state, save_path)
-
-    if is_best:
-        best_save_path = (
-            f"{directory}/best_{filename}" if directory != "" else f"best_{filename}"
-        )
-        shutil.copyfile(save_path, best_save_path)
-
-
 def restore_model(restore_fields, path, epoch=None, device="cpu"):
     """
     Model restoration. This is built into the experiment framework and args.latest_loadpath should contain the path
