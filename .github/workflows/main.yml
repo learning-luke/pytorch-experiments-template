@@ -39,6 +39,8 @@ jobs:
         conda install python=${{ matrix.python-version }}
         conda install git tqdm pytest matplotlib seaborn GPUtil; conda install -c anaconda scipy ;
         conda install pytorch torchvision torchaudio cpuonly -c pytorch
+        source /home/runner/.bashrc
+        conda activate
         conda info
         conda list
     - name: Test with pytest
