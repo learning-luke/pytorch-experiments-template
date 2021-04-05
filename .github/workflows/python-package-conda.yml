@@ -36,6 +36,7 @@ jobs:
     - name: Test with pytest
       run: |
         conda init bash
+        reset
         conda activate testing-suite
         conda install pytest
         pytest
