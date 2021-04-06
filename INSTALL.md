@@ -7,8 +7,9 @@ This can be achieved as follows:
 5. Once done, activate conda using ```conda activate```, note that you might need to resource your .bashrc using 
    ```source ~/.bashrc``` to get access to conda if you are using the same terminal as the one used to install conda.
    
-6. Create a new conda environment using ```conda create -n pytorch-experiments python=3.7; conda activate pytorch-experiments```
-7. Once done, run ```conda install git tqdm matplotlib seaborn GPUtil; conda install -c anaconda scipy ;``` Follow through the 
+
+6. Create a new conda environment using ```conda create -n pytorch-experiments python=3.8; conda activate pytorch-experiments```
+7. Once done, run ```conda install git tqdm matplotlib seaborn GPUtil scipy jupyter requests;``` Follow through the
    process to finish installing these packages.
    
 8.Then go to the [Pytorch installation page](https://pytorch.org/) and run the appropriate commands to install pytorch 

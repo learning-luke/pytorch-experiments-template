@@ -1,0 +1,40 @@
+name: Python Package using Conda
+
+on: [push]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2.1.1
+      with:
+        miniforge-version: latest
+        activate-environment: testing-suite
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        conda install python=${{ matrix.python-version }}
+        pip install pytest
+        conda install git tqdm pytest matplotlib seaborn GPUtil; conda install -c anaconda scipy ;
+        conda install pytorch torchvision torchaudio cpuonly -c pytorch
+        conda info
+        conda list
+    - name: Test with pytest
+      shell: bash -l {0}
+      run: |
+        conda install pytest
+        $CONDA/envs/testing-suite/bin/pytest
