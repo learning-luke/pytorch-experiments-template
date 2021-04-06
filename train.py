@@ -13,6 +13,9 @@ from utils.storage import build_experiment_folder, save_checkpoint, restore_mode
 import random
 import glob
 import tarfile
+from rich.progress import Progress
+from rich import print
+
 
 
 def get_base_argument_parser():
@@ -136,6 +139,7 @@ def eval(epoch, data_loader, model, metric_tracker):
 
 
 if __name__ == "__main__":
+
     argument_parser = get_base_argument_parser()
     args = process_args(argument_parser)
 
