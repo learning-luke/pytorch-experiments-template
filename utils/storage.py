@@ -9,8 +9,14 @@ from collections import OrderedDict
 import scipy
 import json
 import os
-import glob
-import tarfile
+
+
+def isfloat(x):
+    return isinstance(x, float)
+
+
+def isint(x):
+    return isinstance(x, int)
 
 
 def save_dict_in_json(path, metrics_dict, overwrite):
@@ -31,7 +37,7 @@ def save_dict_in_json(path, metrics_dict, overwrite):
         if os.path.exists(metrics_file_path):
             os.remove(metrics_file_path)
 
-    with open(f"{metrics_file_path}.json", "w+") as json_file:
+    with open("{}.json".format(metrics_file_path), "w+") as json_file:
         json.dump(metrics_dict, json_file, indent=4, sort_keys=True)
 
 
@@ -44,11 +50,70 @@ def load_dict_from_json(path):
     """
 
     if not path.endswith(".json"):
-        path = f"{path}.json"
+        path = "{}.json".format(path)
     with open(path) as json_file:
         metrics_dict = json.load(json_file)
 
     return metrics_dict
+
+
+def load_metrics_dict_from_pt(path):
+    """
+    Loads the metrics in a dictionary.
+    :param log_dir: The directory in which the log is saved
+    :param metrics_file_name: The name of the metrics file
+    :return: A dict with the metrics
+    """
+
+    if not path.endswith(".pt"):
+        path = "{}.pt".format(path)
+
+    metrics_file_path = path
+
+    metrics_dict = torch.load(metrics_file_path)
+
+    return metrics_dict
+
+
+def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
+    """
+    Saves a metrics .pt file with the metrics
+    :param log_dir: Directory of log
+    :param metrics_file_name: Name of .csv file
+    :param metrics_dict: A dict of metrics to add in the file
+    :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
+    """
+    if not path.endswith(".pt"):
+        path = "{}.pt".format(path)
+
+    metrics_file_path = path
+
+    if overwrite:
+        if os.path.exists(metrics_file_path):
+            os.remove(metrics_file_path)
+
+    torch.save(metrics_dict, metrics_file_path)
+
+
+def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar"):
+    """
+    Checkpoint saving utility, to ensure that the checkpoints are saved in the right place
+    :param state: this is what gets saved.
+    :param is_best: if this is the current best model, save a copy of it with a `best_`
+    :param directory: where to save
+    :param filename: using this filename
+    :return: nothing, just save things
+    """
+    save_path = "{}/{}".format(directory, filename) if directory != "" else filename
+    torch.save(state, save_path)
+
+    if is_best:
+        best_save_path = (
+            "{}/best_{}".format(directory, filename)
+            if directory != ""
+            else "best_{}".format(filename)
+        )
+        shutil.copyfile(save_path, best_save_path)
 
 
 def restore_model(restore_fields, path, epoch=None, device="cpu"):
@@ -62,12 +127,12 @@ def restore_model(restore_fields, path, epoch=None, device="cpu"):
     """
 
     checkpoint_name = (
-        "latest_ckpt.pth.tar" if epoch == None else f"{epoch}_ckpt.pth.tar"
+        "latest_ckpt.pth.tar" if epoch == None else "{}_ckpt.pth.tar".format(epoch)
     )
 
-    if os.path.isfile(f"{path}/{checkpoint_name}"):
+    if os.path.isfile("{}/{}".format(path, checkpoint_name)):
         checkpoint = torch.load(
-            f"{path}/{checkpoint_name}",
+            "{}/{}".format(path, checkpoint_name),
             map_location=lambda storage, loc: storage,
         )
 
@@ -96,6 +161,12 @@ def build_experiment_folder(experiment_name, log_path, save_images=True):
     """
     saved_models_filepath = os.path.join(
         log_path, experiment_name.replace("%.%", "/"), "saved_models"
+    )
+    logs_filepath = os.path.join(
+        log_path, experiment_name.replace("%.%", "/"), "summary_logs"
+    )
+    images_filepath = os.path.join(
+        log_path, experiment_name.replace("%.%", "/"), "images"
     )
 
     if not os.path.exists(logs_filepath):
@@ -159,5 +230,7 @@ def print_network_stats(net):
             trainable_weights_count += weight_count
 
     print(
-        f"{trainable_params_count} parameters and {trainable_weights_count} weights are trainable"
+        "{} parameters and {} weights are trainable".format(
+            trainable_params_count, trainable_weights_count
+        )
     )
