@@ -6,7 +6,7 @@ import tqdm
 import logging
 
 
-from models import model_zoo
+from models import get_model
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
@@ -56,9 +56,7 @@ def get_base_argument_parser():
     parser.add_argument("--nosave", dest="save", default=True, action="store_false")
 
     # model
-    parser.add_argument(
-        "--model.type", type=str, default="WideResNet_40_2", choices=model_zoo.keys()
-    )
+    parser.add_argument("--model.type", type=str, default="resnet18")
     parser.add_argument("--model.dropout_rate", type=float, default=0.3)
 
     parser.add_argument("--val_set_percentage", type=float, default=0.1)
@@ -229,8 +227,10 @@ if __name__ == "__main__":
 
     ######################################################################################################### Model
 
-    model = model_zoo[args.model.type](
-        num_classes=num_classes, dropRate=args.model.dropout_rate
+    model = get_model(
+        model_type=args.model.type,
+        num_classes=num_classes,
+        dataset_name=args.dataset_name,
     ).to(device)
 
     # alternatively one can define a model directly as follows
