@@ -1,21 +1,24 @@
 import argparse
 import json
-import os
+import rich
+import time
+import tqdm
+import random
+import logging
+import argparse
+import datetime
+
 import numpy as np
 import tqdm
-import logging
 
 
-from models import model_zoo
+from models import get_model
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
 import random
 import glob
 import tarfile
-from rich.progress import Progress
-from rich import print
-
 
 
 def get_base_argument_parser():
@@ -56,9 +59,7 @@ def get_base_argument_parser():
     parser.add_argument("--nosave", dest="save", default=True, action="store_false")
 
     # model
-    parser.add_argument(
-        "--model.type", type=str, default="WideResNet_40_2", choices=model_zoo.keys()
-    )
+    parser.add_argument("--model.type", type=str, default="resnet18")
     parser.add_argument("--model.dropout_rate", type=float, default=0.3)
 
     parser.add_argument("--val_set_percentage", type=float, default=0.1)
@@ -91,93 +92,123 @@ def get_base_argument_parser():
 
 
 def train(epoch, data_loader, model, metric_tracker):
-    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+
+    n_batches = len(data_loader)
+
+    with Live(metric_tracker.table, refresh_per_second=1):
 
         for batch_idx, (inputs, targets) in enumerate(data_loader):
+            batch_time = time.time()
+            data_time = time.time()
+
             inputs, targets = inputs.to(device), targets.to(device)
+            data_time = time.time() - data_time
 
             model = model.train()
 
             logits, features = model(inputs)
 
             loss = criterion(input=logits, target=targets)
-            metric_tracker.push(epoch, batch_idx, logits, targets)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            log_string = (
-                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
-                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
+            batch_time = time.time() - batch_time
+
+            metric_tracker.push(
+                epoch,
+                batch_idx,
+                data_time,
+                batch_time,
+                str(datetime.timedelta(seconds=batch_time * (n_batches - batch_idx))),
+                logits,
+                targets,
             )
 
-            pbar.set_description(log_string)
-            pbar.update()
-
-            if batch_idx >= 3:
-                break
+    return log_string
 
 
 def eval(epoch, data_loader, model, metric_tracker):
-    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+    n_batches = len(data_loader)
+    with Live(metric_tracker.table, refresh_per_second=1):
 
         for batch_idx, (inputs, targets) in enumerate(data_loader):
+            batch_time = time.time()
+            data_time = time.time()
+
             inputs, targets = inputs.to(device), targets.to(device)
+            data_time = time.time() - data_time
 
             model = model.eval()
 
             logits, features = model(inputs)
 
-            metric_tracker.push(epoch, batch_idx, logits, targets)
+            batch_time = time.time() - batch_time
 
-            log_string = (
-                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
-                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
+            metric_tracker.push(
+                epoch,
+                batch_idx,
+                data_time,
+                batch_time,
+                str(datetime.timedelta(seconds=batch_time * (n_batches - batch_idx))),
+                logits,
+                targets,
             )
+
+    return log_string
+
+
+def run_epoch(epoch, model, training, metric_tracker, data_loader):
+    training_iterations = epoch * len(data_loader)
+
+    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+
+        for batch_idx, (inputs, targets) in enumerate(data_loader):
+            if training:
+                log_string = train_iter(
+                    model=model,
+                    x=inputs,
+                    y=targets,
+                    iteration=training_iterations,
+                    epoch=epoch,
+                    set_name=metric_tracker.tracker_name,
+                    metric_tracker=metric_tracker,
+                )
+                training_iterations += 1
+            else:
+                log_string = eval_iter(
+                    model=model,
+                    x=inputs,
+                    y=targets,
+                    iteration=training_iterations,
+                    epoch=epoch,
+                    set_name=metric_tracker.tracker_name,
+                    metric_tracker=metric_tracker,
+                )
 
             pbar.set_description(log_string)
             pbar.update()
 
 
 if __name__ == "__main__":
-
     argument_parser = get_base_argument_parser()
     args = process_args(argument_parser)
 
-    if args.gpu_ids_to_use is None:
-        select_devices(
-            args.num_gpus_to_use,
-            max_load=args.max_gpu_selection_load,
-            max_memory=args.max_gpu_selection_memory,
-            exclude_gpu_ids=args.excude_gpu_list,
-        )
-    else:
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids_to_use.replace(" ", ",")
-
-    from datasets.dataset_loading_hub import load_dataset
-
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    from torchvision.utils import save_image
-    import torch.backends.cudnn as cudnn
-    from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-    from utils.metric_tracking import MetricTracker, compute_accuracy
-
-    ######################################################################################################### Admin
-    saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(
-        experiment_name=args.experiment_name, log_path=args.logs_path
+    os.environ["CUDA_VISIBLE_DEVICES"] = select_devices(
+        args.gpu_ids_to_use, args.num_gpus_to_use
     )
+
+    print(
+        f"[red bold] WARNING: It looks like you're running an experiment. Make sure you commit :smiley:"
+    )
+
+    repo = git.Repo()
+    sha = repo.head.object.hexsha
+    model_checkpoint_file_name = f"{args.experiment_name}_{args.model.type}_{args.dataset_name}_{args.seed}_{sha[:7]}"
 
     ######################################################################################################### Data
 
-    #  if you have an environment variable set, prioritise this over the default argparse option
-    environment_data_filepath = os.environ.get("PYTORCH_DATA_LOC")
-    if environment_data_filepath is not None:
-        logging.warning(
-            f"You have a data filepath set in your environment: {environment_data_filepath}. This will override argparse."
-        )
     (
         train_set_loader,
         val_set_loader,
@@ -189,9 +220,7 @@ if __name__ == "__main__":
         num_classes,
     ) = load_dataset(
         args.dataset_name,
-        args.data_filepath
-        if environment_data_filepath is None
-        else environment_data_filepath,
+        args.data_filepath,
         batch_size=args.batch_size,
         test_batch_size=args.eval_batch_size,
         num_workers=args.num_workers,
@@ -229,9 +258,7 @@ if __name__ == "__main__":
 
     ######################################################################################################### Model
 
-    model = model_zoo[args.model.type](
-        num_classes=num_classes, dropRate=args.model.dropout_rate
-    ).to(device)
+    model = model_zoo[args.model.type](num_classes=num_classes).to(device)
 
     # alternatively one can define a model directly as follows
     # ```
@@ -281,10 +308,8 @@ if __name__ == "__main__":
     if args.resume:
         resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
         if resume_epoch == -1:
-            raise IOError(
-                f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
-                f"latest checkpoint is missing, please remove the --resume flag to try training from scratch"
-            )
+            raise IOError(f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
+                          f"latest checkpoint is missing, please remove the --resume flag to try training from scratch")
         else:
             start_epoch = resume_epoch + 1
 
@@ -309,84 +334,61 @@ if __name__ == "__main__":
     with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
         for epoch in range(start_epoch, args.max_epochs):
 
-            train(
-                epoch,
-                data_loader=train_set_loader,
-                model=model,
-                metric_tracker=metric_tracker_train,
-            )
-            eval(
-                epoch,
-                data_loader=val_set_loader,
-                model=model,
-                metric_tracker=metric_tracker_val,
-            )
-            scheduler.step()
+        train(
+            epoch,
+            data_loader=train_set_loader,
+            model=model,
+            metric_tracker=metric_tracker_train,
+        )
+        eval(
+            epoch,
+            data_loader=val_set_loader,
+            model=model,
+            metric_tracker=metric_tracker_val,
+        )
+        scheduler.step()
 
-            metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")
+            metric_tracker_train.plot(
+                path=f"{images_filepath}/train/metrics.png"
+            )
             metric_tracker_val.plot(path=f"{images_filepath}/val/metrics.png")
             metric_tracker_train.save()
             metric_tracker_val.save()
 
-            ################################################################################ Saving models
-            if args.save:
-                state = {
-                    "args": args,
-                    "epoch": epoch,
-                    "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "scheduler": scheduler.state_dict(),
-                }
+        state = {
+            "args": args,
+            "epoch": epoch,
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
+            "train_metrics": metric_tracker_train.metrics,
+            "val_metrics": metric_tracker_val.metrics,
+        }
 
-                current_epoch_filename = "{}_ckpt.pth.tar".format(epoch)
-                latest_epoch_filename = "latest_ckpt.pth.tar".format(epoch)
+        torch.save(
+            state,
+            f"{args.experiment_folder}/{model_checkpoint_file_name}.checkpoint",
+        )
 
-                epoch_pbar.set_description(
-                    "Saving at {}/{}".format(
-                        saved_models_filepath, current_epoch_filename
-                    )
-                )
+        metric_tracker_train.save()
+        metric_tracker_val.save()
 
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=current_epoch_filename,
-                    is_best=False,
-                )
-
-                epoch_pbar.set_description(
-                    "Saving at {}/{}".format(
-                        saved_models_filepath, latest_epoch_filename
-                    )
-                )
-
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=latest_epoch_filename,
-                    is_best=False,
-                )
-            ############################################################################################################
-
-            epoch_pbar.set_description("")
-            epoch_pbar.update(1)
-
-        if args.test:
-            if args.val_set_percentage >= 0.0:
-                best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
-                    evaluation_metric=np.argmax, metric_name="accuracy_mean"
-                )
-                resume_epoch = restore_model(
-                    restore_fields,
-                    path=saved_models_filepath,
-                    epoch=best_epoch_val_model,
-                )
-
-            eval(
-                epoch,
-                model=model,
-                data_loader=test_set_loader,
-                metric_tracker=metric_tracker_test,
+    if args.test:
+        if args.val_set_percentage >= 0.0:
+            best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
+                evaluation_metric=np.argmax, metric_name="accuracy_mean"
             )
+            resume_epoch = restore_model(
+                restore_fields,
+                path=args.experiment_folder,
+                epoch=best_epoch_val_model,
+            )
+
+        eval(
+            epoch,
+            model=model,
+            data_loader=test_set_loader,
+            metric_tracker=metric_tracker_test,
+        )
 
             metric_tracker_test.save()

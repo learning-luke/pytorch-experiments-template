@@ -92,19 +92,19 @@ def enlarge_cinic_10(cinic_dir="../data/Cinic-10", symlink=True):
         os.makedirs(enlarge_directory + "/test")
 
     for c in classes:
-        if not os.path.exists("{}/train/{}".format(enlarge_directory, c)):
-            os.makedirs("{}/train/{}".format(enlarge_directory, c))
-        if not os.path.exists("{}/test/{}".format(enlarge_directory, c)):
-            os.makedirs("{}/test/{}".format(enlarge_directory, c))
+        if not os.path.exists(f"{enlarge_directory}/train/{c}"):
+            os.makedirs(f"{enlarge_directory}/train/{c}")
+        if not os.path.exists(f"{enlarge_directory}/test/{c}"):
+            os.makedirs(f"{enlarge_directory}/test/{c}")
 
     for s in sets:
         for c in classes:
-            source_directory = "{}/{}/{}".format(cinic_directory, s, c)
-            filenames = glob.glob("{}/*.png".format(source_directory))
+            source_directory = f"{cinic_directory}/{s}/{c}"
+            filenames = glob.glob(f"{source_directory}/*.png")
             for fn in filenames:
                 dest_fn = fn.split("/")[-1]
                 if s == "train" or s == "valid":
-                    dest_fn = "{}/train/{}/{}".format(enlarge_directory, c, dest_fn)
+                    dest_fn = f"{enlarge_directory}/train/{c}/{dest_fn}"
                     if symlink:
                         if not os.path.islink(dest_fn):
                             os.symlink(os.path.abspath(fn), os.path.abspath(dest_fn))
@@ -113,7 +113,7 @@ def enlarge_cinic_10(cinic_dir="../data/Cinic-10", symlink=True):
                             copyfile(fn, dest_fn)
 
                 elif s == "test":
-                    dest_fn = "{}/test/{}/{}".format(enlarge_directory, c, dest_fn)
+                    dest_fn = f"{enlarge_directory}/test/{c}/{dest_fn}"
                     if symlink:
                         if not os.path.islink(dest_fn):
                             os.symlink(os.path.abspath(fn), os.path.abspath(dest_fn))

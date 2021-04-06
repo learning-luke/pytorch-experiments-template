@@ -1,16 +1,14 @@
-import numpy as np
-import torch
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-sns.set()
 import os
-from utils.storage import load_metrics_dict_from_pt, save_metrics_dict_in_pt
+import torch
+import numpy as np
+
+from rich.console import Console
+from rich.table import Table
 
 
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()
-    return np.mean(acc)
+    return float(np.mean(acc))
 
 
 class MetricTracker:
@@ -22,99 +20,72 @@ class MetricTracker:
         path="",
     ):
         if metrics_to_track is None:
-            metrics_to_track = {
+            self.metrics_to_track = {
                 "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
                 "accuracy": compute_accuracy,
             }
-        self.metrics_to_track = metrics_to_track
+        else:
+            self.metrics_to_track = metrics_to_track
+
+        self.metrics_to_receive = [
+            "epochs",
+            "iterations",
+            "data/s",
+            "batch/s",
+            "epoch time",
+        ]
+        self.metrics = {}
+
         self.tracker_name = tracker_name
-        self.metrics = {"epochs": [], "iterations": []}
-        self.path = path
-        for k, _ in metrics_to_track.items():
+
+        if not path.endswith(".pt"):
+            self.path = f"{path}.pt"
+        else:
+            self.path = path
+
+        #  set up the metrics dictionary as combo of track and receive
+        for k in self.metrics_to_receive:
             self.metrics[k] = []
+
+        for k, _ in self.metrics_to_track.items():
+            self.metrics[k] = []
+
         if load and os.path.isfile(path):
-            metrics_from_file = load_metrics_dict_from_pt(path=path)
+            metrics_from_file = torch.load(self.path)
             self.metrics = metrics_from_file
 
-    def push(self, epoch, iteration, logits, targets):
+        # set up a table for printing
+        self.table = Table(title=self.tracker_name)
+        for key in self.metrics.keys():
+            self.table.add_column(key)
+
+    def push(self, epoch, iteration, data, batch_time, epoch_time, logits, targets):
         self.metrics["epochs"].append(epoch)
         self.metrics["iterations"].append(iteration)
+        self.metrics["data/s"].append(data)
+        self.metrics["batch/s"].append(batch_time)
+        self.metrics["epoch time"].append(epoch_time)
+
         for k, fnc in self.metrics_to_track.items():
             self.metrics[k].append(fnc(logits, targets))
 
-    def get_current_iteration_metric_trace_string(self):
-        return "".join(
-            [
-                (
-                    "{}: {:0.4f}; ".format(key, value[-1])
-                    if (key != "epochs" and key != "iterations")
-                    else ""
-                )
-                for key, value in self.metrics.items()
-            ]
-        ).replace("(", "")
+        self.update_metric_table()
 
-    def save(self):
-        save_metrics_dict_in_pt(
-            path=self.path, metrics_dict=self.metrics, overwrite=True
-        )
+    def update_metric_table(
+        self,
+    ):
+        row = [
+            f"{value[-1]:0.4f}" if isinstance(value[-1], float) else f"{value[-1]}"
+            for key, value in self.metrics.items()
+        ]
+        self.table.add_row(*row)
 
-    def collect_per_epoch(self):
-        epoch_metrics = {"epochs": []}
-        for k, _ in self.metrics_to_track.items():
-            epoch_metrics["{}_mean".format(k)] = []
-            epoch_metrics["{}_std".format(k)] = []
+    def save(self, overwrite=True):
+        if not self.path.endswith(".pt"):
+            self.path = f"{self.path}.pt"
 
-        epochs = self.metrics["epochs"]
-        unique_epochs = np.unique(epochs)
-        epoch_metrics["epochs"] = unique_epochs
+        if overwrite:
+            if os.path.exists(self.path):
+                os.remove(self.path)
 
-        for k, v in self.metrics.items():
-            v = np.array(v)
-            if k != "iterations" and k != "epochs":
-                for this_epoch in unique_epochs:
-                    where_metrics = epochs == this_epoch
-                    v_mean = np.mean(v[where_metrics])
-                    v_std = np.std(v[where_metrics])
-                    epoch_metrics["{}_mean".format(k)].append(v_mean)
-                    epoch_metrics["{}_std".format(k)].append(v_std)
-        return epoch_metrics
-
-    def get_best_epoch_for_metric(self, metric_name, evaluation_metric=np.argmax):
-        return evaluation_metric(self.collect_per_epoch()[metric_name])
-
-    def plot(self, path, plot_std_dev=True):
-        epoch_metrics = self.collect_per_epoch()
-
-        x = np.array(epoch_metrics["epochs"])
-        keys = [k for k, _ in epoch_metrics.items() if k != "epochs"]
-        reduced_keys = []
-
-        for key in keys:
-            reduced_key = key.replace("_mean", "").replace("_std", "")
-            if reduced_key not in reduced_keys:
-                reduced_keys.append(reduced_key)
-        num_axes = len(reduced_keys)
-        nrow = 2
-        ncol = int(np.ceil(num_axes / nrow))
-        fig = plt.figure(figsize=(5 * nrow, 5 * ncol))
-        for pi, key in enumerate(reduced_keys):
-            ax = fig.add_subplot(ncol, nrow, pi + 1)
-            y_mean = np.array(epoch_metrics[key + "_mean"])
-            y_std = np.array(epoch_metrics[key + "_std"])
-            if plot_std_dev:
-                ax.fill_between(
-                    x,
-                    y_mean - y_std,
-                    y_mean + y_std,
-                    np.ones_like(x) == 1,
-                    color="g",
-                    alpha=0.1,
-                )
-            ax.plot(x, y_mean, "g-", alpha=0.9)
-            ax.set_ylabel(key)
-            ax.set_xlabel("epochs")
-        fig.tight_layout()
-        fig.savefig(path, dpi=100)
-        plt.close(fig)
-        del fig
+        torch.save(self.metrics, self.path)

@@ -127,7 +127,7 @@ class CIFAR10Loader:
             transform=self.transform_train,
         )
 
-        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_training_items = int(len(train_set) * (1.0 - val_set_percentage))
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
@@ -262,7 +262,9 @@ def load_dataset(
     ###
 
     train_set, val_set, test_set, num_labels = dataloader.get_data(
-        data_filepath, val_set_percentage=val_set_percentage, download=download
+        os.path.join(data_filepath, dataset),
+        val_set_percentage=val_set_percentage,
+        download=download,
     )
 
     train_loader = torch.utils.data.DataLoader(

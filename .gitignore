@@ -137,8 +137,11 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-log*
+log/*.checkpoint
 .idea*
 *.png
 *tar*
 *.sh
+
+# Mac stuff (sorry)
+.DS_Store

@@ -1,0 +1,5 @@
+{
+    "model.batch_size": 2,
+    "data_filepath": "~/datasets/cifar10",
+    "save": true
+}
