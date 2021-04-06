@@ -97,12 +97,6 @@ def build_experiment_folder(experiment_name, log_path, save_images=True):
     saved_models_filepath = os.path.join(
         log_path, experiment_name.replace("%.%", "/"), "saved_models"
     )
-    logs_filepath = os.path.join(
-        log_path, experiment_name.replace("%.%", "/"), "summary_logs"
-    )
-    images_filepath = os.path.join(
-        log_path, experiment_name.replace("%.%", "/"), "images"
-    )
 
     if not os.path.exists(logs_filepath):
         os.makedirs(logs_filepath)
@@ -122,7 +116,6 @@ def build_experiment_folder(experiment_name, log_path, save_images=True):
             os.makedirs(images_filepath + "/test")
 
     return saved_models_filepath, logs_filepath, images_filepath
-
 
 
 def get_best_performing_epoch_on_target_metric(
