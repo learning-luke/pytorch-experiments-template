@@ -9,7 +9,7 @@ import torch
 def select_devices(
     num_gpus_to_use, max_load=0.01, max_memory=0.01, exclude_gpu_ids=[], gpu_to_use=None
 ):
-    print(num_gpus_to_use, max_load, max_memory, exclude_gpu_ids, gpu_to_use)
+
     if num_gpus_to_use == 0 or not torch.cuda.is_available():
         return ""
     elif gpu_to_use is None:
@@ -28,4 +28,4 @@ def select_devices(
                 "the requirements or using num_gpus_to_use=0 to use CPU"
             )
 
-    return ','.join([str(gpu_idx) for gpu_idx in gpu_to_use])
+    return [str(gpu_idx) for gpu_idx in gpu_to_use]

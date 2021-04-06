@@ -4,7 +4,6 @@ from collections import namedtuple, defaultdict
 import pprint
 from utils.storage import load_dict_from_json
 import sys
-from rich import print
 
 # 3. priority should be defaults, json file, then any additional command line arguments
 def merge_json_with_mutable_arguments(json_file_path, arg_dict):
@@ -114,6 +113,6 @@ def process_args(parser):
             args_tree_like_structure[key] = value
 
     args = DictWithDotNotation(args_tree_like_structure)
-    print(pprint.pformat(args, indent=4))
+    pprint.pprint(args, indent=4)
 
     return args
