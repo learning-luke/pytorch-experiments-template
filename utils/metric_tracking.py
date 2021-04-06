@@ -4,7 +4,7 @@ import numpy as np
 
 from rich.console import Console
 from rich.table import Table
-
+import matplotlib.pyplot as plt
 
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()
@@ -89,3 +89,64 @@ class MetricTracker:
                 os.remove(self.path)
 
         torch.save(self.metrics, self.path)
+
+    def collect_per_epoch(self):
+        epoch_metrics = {"epochs": []}
+        for k, _ in self.metrics_to_track.items():
+            epoch_metrics["{}_mean".format(k)] = []
+            epoch_metrics["{}_std".format(k)] = []
+
+        epochs = self.metrics["epochs"]
+        unique_epochs = np.unique(epochs)
+        epoch_metrics["epochs"] = unique_epochs
+
+        for k, v in self.metrics.items():
+            if k in self.metrics_to_track:
+                v = np.array(v)
+                if k != "iterations" and k != "epochs":
+                    for this_epoch in unique_epochs:
+                        where_metrics = epochs == this_epoch
+                        v_mean = np.mean(v[where_metrics])
+                        v_std = np.std(v[where_metrics])
+                        epoch_metrics["{}_mean".format(k)].append(v_mean)
+                        epoch_metrics["{}_std".format(k)].append(v_std)
+        return epoch_metrics
+
+    def get_best_epoch_for_metric(self, metric_name, evaluation_metric=np.argmax):
+        return evaluation_metric(self.collect_per_epoch()[metric_name])
+
+    def plot(self, path, plot_std_dev=True):
+        epoch_metrics = self.collect_per_epoch()
+
+        x = np.array(epoch_metrics["epochs"])
+        keys = [k for k, _ in epoch_metrics.items() if k != "epochs"]
+        reduced_keys = []
+
+        for key in keys:
+            reduced_key = key.replace("_mean", "").replace("_std", "")
+            if reduced_key not in reduced_keys:
+                reduced_keys.append(reduced_key)
+        num_axes = len(reduced_keys)
+        nrow = 2
+        ncol = int(np.ceil(num_axes / nrow))
+        fig = plt.figure(figsize=(5 * nrow, 5 * ncol))
+        for pi, key in enumerate(reduced_keys):
+            ax = fig.add_subplot(ncol, nrow, pi + 1)
+            y_mean = np.array(epoch_metrics[key + "_mean"])
+            y_std = np.array(epoch_metrics[key + "_std"])
+            if plot_std_dev:
+                ax.fill_between(
+                    x,
+                    y_mean - y_std,
+                    y_mean + y_std,
+                    np.ones_like(x) == 1,
+                    color="g",
+                    alpha=0.1,
+                )
+            ax.plot(x, y_mean, "g-", alpha=0.9)
+            ax.set_ylabel(key)
+            ax.set_xlabel("epochs")
+        fig.tight_layout()
+        fig.savefig(path, dpi=100)
+        plt.close(fig)
+        del fig
