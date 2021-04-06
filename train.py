@@ -1,32 +1,24 @@
 import argparse
-import datetime
-import glob
-import os
-import random
-import tarfile
+import json
+import rich
 import time
-
-import git
-import numpy as np
-import torch
-import torch.backends.cudnn as cudnn
-import torch.nn as nn
-import torch.optim as optim
 import tqdm
-from rich import print
-from rich.live import Live
-from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
+import random
+import logging
+import argparse
+import datetime
 
-from datasets.dataset_loading_hub import load_dataset
-from models import model_zoo
-from utils.arg_parsing import add_extra_option_args
-from utils.arg_parsing import process_args
+import numpy as np
+import tqdm
+
+
+from models import get_model
+from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
-from utils.metric_tracking import MetricTracker, compute_accuracy
-from utils.storage import (
-    restore_model,
-    build_experiment_folder,
-)
+from utils.storage import build_experiment_folder, save_checkpoint, restore_model
+import random
+import glob
+import tarfile
 
 
 def get_base_argument_parser():
@@ -99,10 +91,12 @@ def get_base_argument_parser():
 ######################################################################################################### Training
 
 
-def train(epoch, data_loader, model, metric_tracker, progress_tracker):
+def train(epoch, data_loader, model, metric_tracker):
+
     n_batches = len(data_loader)
 
     with Live(metric_tracker.table, refresh_per_second=1):
+
         for batch_idx, (inputs, targets) in enumerate(data_loader):
             batch_time = time.time()
             data_time = time.time()
@@ -132,10 +126,13 @@ def train(epoch, data_loader, model, metric_tracker, progress_tracker):
                 targets,
             )
 
+    return log_string
+
 
 def eval(epoch, data_loader, model, metric_tracker):
     n_batches = len(data_loader)
     with Live(metric_tracker.table, refresh_per_second=1):
+
         for batch_idx, (inputs, targets) in enumerate(data_loader):
             batch_time = time.time()
             data_time = time.time()
@@ -159,14 +156,44 @@ def eval(epoch, data_loader, model, metric_tracker):
                 targets,
             )
 
+    return log_string
+
+
+def run_epoch(epoch, model, training, metric_tracker, data_loader):
+    training_iterations = epoch * len(data_loader)
+
+    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+
+        for batch_idx, (inputs, targets) in enumerate(data_loader):
+            if training:
+                log_string = train_iter(
+                    model=model,
+                    x=inputs,
+                    y=targets,
+                    iteration=training_iterations,
+                    epoch=epoch,
+                    set_name=metric_tracker.tracker_name,
+                    metric_tracker=metric_tracker,
+                )
+                training_iterations += 1
+            else:
+                log_string = eval_iter(
+                    model=model,
+                    x=inputs,
+                    y=targets,
+                    iteration=training_iterations,
+                    epoch=epoch,
+                    set_name=metric_tracker.tracker_name,
+                    metric_tracker=metric_tracker,
+                )
+
+            pbar.set_description(log_string)
+            pbar.update()
+
 
 if __name__ == "__main__":
     argument_parser = get_base_argument_parser()
     args = process_args(argument_parser)
-
-    saved_models_filepath, logs_filepath, images_filepath = build_experiment_folder(
-        experiment_name=args.experiment_name, log_path=args.logs_path
-    )
 
     os.environ["CUDA_VISIBLE_DEVICES"] = select_devices(
         args.gpu_ids_to_use, args.num_gpus_to_use
@@ -220,7 +247,7 @@ if __name__ == "__main__":
     # Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your
     # many experiments was actually quite good but you forgot what you did
 
-    snapshot_filename = f"{saved_models_filepath}/snapshot.tar.gz"
+    snapshot_filename = "{}/snapshot.tar.gz".format(saved_models_filepath)
     filetypes_to_include = [".py"]
     all_files = []
     for filetype in filetypes_to_include:
@@ -281,10 +308,8 @@ if __name__ == "__main__":
     if args.resume:
         resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
         if resume_epoch == -1:
-            raise IOError(
-                f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
-                f"latest checkpoint is missing, please remove the --resume flag to try training from scratch"
-            )
+            raise IOError(f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
+                          f"latest checkpoint is missing, please remove the --resume flag to try training from scratch")
         else:
             start_epoch = resume_epoch + 1
 
@@ -298,7 +323,7 @@ if __name__ == "__main__":
         MetricTracker(
             metrics_to_track=metrics_to_track,
             load=True if start_epoch > 0 else False,
-            path=f"{args.experiment_folder}/{model_checkpoint_file_name}.pt",
+            path=f"{logs_filepath}/metrics_{tracker_name}.pt",
             tracker_name=tracker_name,
         )
         for tracker_name in ["training", "validation", "testing"]
@@ -306,7 +331,8 @@ if __name__ == "__main__":
 
     train_iterations = 0
 
-    for epoch in range(start_epoch, args.max_epochs):
+    with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
+        for epoch in range(start_epoch, args.max_epochs):
 
         train(
             epoch,
@@ -322,10 +348,12 @@ if __name__ == "__main__":
         )
         scheduler.step()
 
-        metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")
-        metric_tracker_val.plot(path=f"{images_filepath}/val/metrics.png")
-        metric_tracker_train.save()
-        metric_tracker_val.save()
+            metric_tracker_train.plot(
+                path=f"{images_filepath}/train/metrics.png"
+            )
+            metric_tracker_val.plot(path=f"{images_filepath}/val/metrics.png")
+            metric_tracker_train.save()
+            metric_tracker_val.save()
 
         state = {
             "args": args,
@@ -363,4 +391,4 @@ if __name__ == "__main__":
             metric_tracker=metric_tracker_test,
         )
 
-        metric_tracker_test.save()
+            metric_tracker_test.save()
