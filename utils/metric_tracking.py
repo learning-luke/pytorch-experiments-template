@@ -8,9 +8,11 @@ from rich.progress import TextColumn
 from rich.table import Table
 import matplotlib.pyplot as plt
 
+
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()
     return float(np.mean(acc)) * 100
+
 
 class MetricTracker:
     def __init__(
@@ -38,8 +40,9 @@ class MetricTracker:
         self.metrics = {}
 
         self.tracker_name = tracker_name
-        self.metrics = {"epochs": [], "iterations": []}
         self.path = path
+        for k in self.metrics_to_receive:
+            self.metrics[k] = []
         for k, _ in metrics_to_track.items():
             self.metrics[k] = []
         if load and os.path.isfile(path):
@@ -47,20 +50,21 @@ class MetricTracker:
             self.metrics = metrics_from_file
 
         # set up a table for printing
-        self.per_epoch_table = Table(title=f'{self.tracker_name.capitalize()} Epoch Summary')
+        self.per_epoch_table = Table(
+            title=f"{self.tracker_name.capitalize()} Epoch Summary"
+        )
         for key in self.collect_per_epoch().keys():
             self.per_epoch_table.add_column(key)
 
     def push(self, epoch, iteration, data, batch_time, epoch_time, logits, targets):
         self.metrics["epochs"].append(epoch)
         self.metrics["iter"].append(iteration)
-        self.metrics["data/s"].append(1./data)
-        self.metrics["iter/s"].append(1./batch_time)
+        self.metrics["data/s"].append(1.0 / data)
+        self.metrics["iter/s"].append(1.0 / batch_time)
         self.metrics["epoch ETA"].append(epoch_time)
 
         for key, metric_function in self.metrics_to_track.items():
             self.metrics[key].append(metric_function(logits, targets))
-
 
     def get_metric_text_column(self):
 
@@ -75,9 +79,10 @@ class MetricTracker:
 
     def get_current_iteration_metric_text_column_fields(self):
         return {
-            key: 'None' if len(value) == 0
-            else (f"{value[-1]:0.2f}" if isinstance(value[-1], float)
-            else value[-1]) for key, value in self.metrics.items()
+            key: "None"
+            if len(value) == 0
+            else (f"{value[-1]:0.2f}" if isinstance(value[-1], float) else value[-1])
+            for key, value in self.metrics.items()
         }
 
     def get_current_iteration_metric_trace_string(self):
@@ -110,7 +115,6 @@ class MetricTracker:
                 os.remove(self.path)
 
         torch.save(self.metrics, self.path)
-
 
     def collect_per_epoch(self):
         epoch_metrics = {"epochs": []}
