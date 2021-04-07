@@ -2,8 +2,9 @@ import os
 import sys
 from copy import copy
 import argparse
+from rich import print
 
-experiment_json_dir = "../experiment_config_files/"
+experiment_json_dir = "../../experiment_files/experiment_config_files/"
 main_experiment_script = "train.py"
 
 cluster_scripts = {
@@ -13,8 +14,8 @@ cluster_scripts = {
     "charles_cluster_single": "cluster_single_gpu_charles_template_script",
     "gpu_box": "gpu_box_template_script",
 }
-local_script_dir = "../experiment_scripts"
-cluster_script_dir = "../cluster_experiment_scripts"
+local_script_dir = "../../experiment_files/local_experiment_scripts"
+cluster_script_dir = "../../experiment_files/cluster_experiment_scripts"
 
 if not os.path.exists(local_script_dir):
     os.makedirs(local_script_dir)
@@ -94,3 +95,4 @@ for subdir, dir, files in os.walk(experiment_json_dir):
             )
             local_script_name = os.path.abspath(local_script_name)
             write_text_to_file(text=local_script_text, filepath=local_script_name)
+            print(local_script_name)

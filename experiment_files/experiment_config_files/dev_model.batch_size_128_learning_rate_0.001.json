@@ -1,0 +1,38 @@
+{
+    "batch_size": 256,
+    "data_filepath": "../data/cifar10",
+    "dataset_name": "cifar10",
+    "eval_batch_size": 256,
+    "excude_gpu_list": [],
+    "experiment_name": "dev_model.batch_size_128_learning_rate_0.001",
+    "filepath_to_arguments_json_config": null,
+    "gpu_ids_to_use": null,
+    "learning_rate": 0.001,
+    "logs_path": "log",
+    "max_epochs": 200,
+    "max_gpu_selection_load": 0.01,
+    "max_gpu_selection_memory": 0.01,
+    "milestones": [
+        60,
+        120,
+        160
+    ],
+    "model": {
+        "depth": 18,
+        "dropout_rate": 0.3,
+        "type": "resnet18",
+        "widen_factor": 1
+    },
+    "model.batch_size": 128,
+    "momentum": 0.9,
+    "num_gpus_to_use": 0,
+    "num_workers": 8,
+    "optim": "SGD",
+    "resume": false,
+    "save": true,
+    "scheduler": "MultiStep",
+    "seed": 0,
+    "test": true,
+    "val_set_percentage": 0.1,
+    "weight_decay": 0.0005
+}
