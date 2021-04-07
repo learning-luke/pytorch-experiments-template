@@ -212,7 +212,7 @@ class ImageNetLoader:
         self.transform_validate = transforms.Compose(
             [
                 transforms.Resize(256),
-                transforms.CenterCrop(self.im_size.width),
+                transforms.CenterCrop(self.image_shape.width),
                 transforms.ToTensor(),
                 normalize,
             ]
