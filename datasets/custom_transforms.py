@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torchvision.transforms as transforms
+from rich import print
 
 
 class Cutout:

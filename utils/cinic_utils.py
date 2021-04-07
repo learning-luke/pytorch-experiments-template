@@ -1,6 +1,7 @@
 import os
 import glob
 from shutil import copyfile
+from rich import print
 
 import errno
 

@@ -4,6 +4,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from rich import print
 
 __all__ = ["DenseNet121", "DenseNet169", "DenseNet201", "DenseNet161"]
 
