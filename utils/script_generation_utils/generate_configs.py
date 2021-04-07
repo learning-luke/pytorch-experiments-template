@@ -2,16 +2,15 @@ import os
 import shutil
 from dataclasses import dataclass
 
-from script_generation_tools.config_utils import (
-    generate_hyperparameter_combination_dicts,
-    generate_hyperparameter_search_experiment_configs,
-)
-from utils.arg_parsing import add_extra_option_args
+from utils.arg_parsing import add_extra_option_args, process_args
+from utils.script_generation_utils.config_utils import generate_hyperparameter_combination_dicts, \
+    generate_hyperparameter_search_experiment_configs
 from utils.storage import save_dict_in_json
-from train import get_base_arguments
+from train import get_base_argument_parser
 
-# 4. grid search and random search
-
+# 4. TODO Antreas: implement:
+#  a. grid search (done)
+#  b. random search (not done)
 
 @dataclass
 class HyperparameterSearchConfig:
@@ -19,15 +18,16 @@ class HyperparameterSearchConfig:
     learning_rate: list
 
 
-default_variable_dict = vars(get_base_arguments())
+argument_parser = get_base_argument_parser()
+default_variable_dict = process_args(argument_parser)
 
 
 hyperparameter_config = HyperparameterSearchConfig(
-    modeldotbatch_size=[64, 128], learning_rate=[0.001, 0.0001, 0.00001]
+    modeldotbatch_size=[64, 128], learning_rate=[0.001]
 )
 
 config_list = []
-experiment_config_target_json_dir = "../experiment_config_files/"
+experiment_config_target_json_dir = "../../experiment_files/experiment_config_files/"
 
 if os.path.exists(experiment_config_target_json_dir):
     shutil.rmtree(experiment_config_target_json_dir)

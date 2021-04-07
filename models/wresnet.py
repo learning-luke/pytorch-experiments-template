@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ["WideResNet"]
+__all__ = ["WideResNet","WideResNet_16_8","WideResNet_28_10","WideResNet_40_2"]
 
 
 class BasicBlock(nn.Module):
@@ -116,3 +116,16 @@ class WideResNet(nn.Module):
         pool = pool.view(-1, self.nChannels)
         logits = self.fc(pool)
         return logits, (conv1, block1, block2, block3, pool)
+      
+
+def WideResNet_16_8(num_classes=10, variant="cifar10", **kwargs):
+    return WideResNet(depth=16, num_classes=num_classes, widen_factor=8, **kwargs)
+
+
+def WideResNet_28_10(num_classes=10, variant="cifar10", **kwargs):
+    return WideResNet(depth=28, num_classes=num_classes, widen_factor=10, **kwargs)
+
+
+def WideResNet_40_2(num_classes=10, variant="cifar10", **kwargs):
+    return WideResNet(depth=40, num_classes=num_classes, widen_factor=2, **kwargs)
+

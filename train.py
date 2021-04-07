@@ -5,14 +5,27 @@ import numpy as np
 import tqdm
 import logging
 
+from rich.live import Live
+from rich.panel import Panel
+from rich.table import Table
 
-from models import get_model
+from models import model_zoo
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
 import random
 import glob
 import tarfile
+import time
+from rich import print
+from rich.progress import (
+    Progress,
+    TextColumn,
+    BarColumn,
+    TimeRemainingColumn,
+    RenderableColumn,
+    SpinnerColumn,
+)
 
 
 def get_base_argument_parser():
@@ -53,7 +66,7 @@ def get_base_argument_parser():
     parser.add_argument("--nosave", dest="save", default=True, action="store_false")
 
     # model
-    parser.add_argument("--model.type", type=str, default="resnet18")
+    parser.add_argument("--model.type", type=str, default="ResNet18")
     parser.add_argument("--model.dropout_rate", type=float, default=0.3)
 
     parser.add_argument("--val_set_percentage", type=float, default=0.1)
@@ -85,54 +98,109 @@ def get_base_argument_parser():
 ######################################################################################################### Training
 
 
-def train(epoch, data_loader, model, metric_tracker):
-    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+def train(
+    epoch,
+    data_loader,
+    model,
+    metric_tracker,
+    progress_panel,
+    progress_tracker,
+    overall_progress,
+    overall_task,
+):
+    model = model.train()
+    # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+    num_batches = len(data_loader)
+    epoch_start_time = time.time()
+    progress_panel.reset(progress_tracker)
+    for batch_idx, (inputs, targets) in enumerate(data_loader):
+        batch_time = time.time()
+        data_time = time.time()
 
-        for batch_idx, (inputs, targets) in enumerate(data_loader):
-            inputs, targets = inputs.to(device), targets.to(device)
+        inputs, targets = inputs.to(device), targets.to(device)
+        data_time = time.time() - data_time
 
-            model = model.train()
+        logits, features = model(inputs)
 
-            logits, features = model(inputs)
+        loss = criterion(input=logits, target=targets)
 
-            loss = criterion(input=logits, target=targets)
-            metric_tracker.push(epoch, batch_idx, logits, targets)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        batch_time = time.time() - batch_time
 
-            log_string = (
-                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
-                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
-            )
+        eta_time_epoch = ((time.time() - epoch_start_time) / (batch_idx + 1)) * (
+            num_batches - (batch_idx + 1)
+        )
 
-            pbar.set_description(log_string)
-            pbar.update()
+        metric_tracker.push(
+            epoch,
+            batch_idx,
+            data_time,
+            batch_time,
+            eta_time_epoch,
+            logits,
+            targets,
+        )
 
-            if batch_idx >= 3:
-                break
+        iter_update_dict = {
+            **dict(task_id=progress_tracker, advance=1),
+            **metric_tracker.get_current_iteration_metric_text_column_fields(),
+        }
+        progress_panel.update(**iter_update_dict)
+        overall_progress.advance(overall_task, advance=1)
+    metric_tracker.update_per_epoch_table()
 
 
-def eval(epoch, data_loader, model, metric_tracker):
-    with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+def eval(
+    epoch,
+    data_loader,
+    model,
+    metric_tracker,
+    progress_panel,
+    progress_tracker,
+    overall_progress,
+    overall_task,
+):
+    # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
+    num_batches = len(data_loader)
+    epoch_start_time = time.time()
+    model = model.eval()
+    progress_panel.reset(progress_tracker)
 
-        for batch_idx, (inputs, targets) in enumerate(data_loader):
-            inputs, targets = inputs.to(device), targets.to(device)
+    for batch_idx, (inputs, targets) in enumerate(data_loader):
+        batch_time = time.time()
+        data_time = time.time()
 
-            model = model.eval()
+        inputs, targets = inputs.to(device), targets.to(device)
+        data_time = time.time() - data_time
 
-            logits, features = model(inputs)
+        logits, features = model(inputs)
 
-            metric_tracker.push(epoch, batch_idx, logits, targets)
+        batch_time = time.time() - batch_time
 
-            log_string = (
-                f"{args.experiment_name}, {metric_tracker.tracker_name}: {batch_idx}; "
-                f"{metric_tracker.get_current_iteration_metric_trace_string()}"
-            )
+        eta_time_epoch = ((time.time() - epoch_start_time) / (batch_idx + 1)) * (
+            num_batches - (batch_idx + 1)
+        )
 
-            pbar.set_description(log_string)
-            pbar.update()
+        metric_tracker.push(
+            epoch,
+            batch_idx,
+            data_time,
+            batch_time,
+            eta_time_epoch,
+            logits,
+            targets,
+        )
+
+        iter_update_dict = {
+            **dict(task_id=progress_tracker, advance=1),
+            **metric_tracker.get_current_iteration_metric_text_column_fields(),
+        }
+        progress_panel.update(**iter_update_dict)
+        overall_progress.advance(overall_task, advance=1)
+    metric_tracker.update_per_epoch_table()
 
 
 if __name__ == "__main__":
@@ -150,7 +218,6 @@ if __name__ == "__main__":
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids_to_use.replace(" ", ",")
 
     from datasets.dataset_loading_hub import load_dataset
-
     import torch
     import torch.nn as nn
     import torch.optim as optim
@@ -212,7 +279,7 @@ if __name__ == "__main__":
     # Always save a snapshot of the current state of the code. I've found this helps immensely if you find that one of your
     # many experiments was actually quite good but you forgot what you did
 
-    snapshot_filename = "{}/snapshot.tar.gz".format(saved_models_filepath)
+    snapshot_filename = f"{saved_models_filepath}/snapshot.tar.gz"
     filetypes_to_include = [".py"]
     all_files = []
     for filetype in filetypes_to_include:
@@ -300,9 +367,60 @@ if __name__ == "__main__":
         for tracker_name in ["training", "validation", "testing"]
     )
 
+    epoch_progress = Progress(
+        "{task.description}",
+        SpinnerColumn(),
+        BarColumn(),
+        TextColumn("{task.percentage:>3.0f}%"),
+        metric_tracker_train.get_metric_text_column(),
+    )
+
+    train_progress_dict = {
+        **dict(description="[green]Training", total=len(train_set_loader)),
+        **metric_tracker_train.get_current_iteration_metric_text_column_fields(),
+    }
+
+    val_progress_dict = {
+        **dict(description="[yellow]Validation", total=len(val_set_loader)),
+        **metric_tracker_val.get_current_iteration_metric_text_column_fields(),
+    }
+
+    train_epoch_progress = epoch_progress.add_task(**train_progress_dict)
+    val_epoch_progress = epoch_progress.add_task(**val_progress_dict)
+
+    for task in epoch_progress.tasks:
+        print(task)
+
+    overall_progress = Progress()
+
+    total_iters = (args.max_epochs - 1 - start_epoch) * (
+        len(train_set_loader) + len(val_set_loader)
+    ) + len(test_set_loader) * args.test
+
+    overall_task = overall_progress.add_task(
+        "Experiment Progress",
+        completed=(start_epoch + 1) * (len(train_set_loader) + len(val_set_loader)),
+        total=total_iters,
+    )
+
+    progress_table = Table.grid()
+    progress_table.add_row(
+        Panel.fit(
+            overall_progress,
+            title="Experiment Progress",
+            border_style="green",
+            padding=(2, 2),
+        ),
+    )
+    progress_table.add_row(
+        Panel.fit(epoch_progress, title="[b]Jobs", border_style="red", padding=(1, 2))
+    )
+    progress_table.add_row(metric_tracker_train.per_epoch_table)
+    progress_table.add_row(metric_tracker_val.per_epoch_table)
+
     train_iterations = 0
 
-    with tqdm.tqdm(initial=start_epoch, total=args.max_epochs) as epoch_pbar:
+    with Live(progress_table, refresh_per_second=1):
         for epoch in range(start_epoch, args.max_epochs):
 
             train(
@@ -310,13 +428,23 @@ if __name__ == "__main__":
                 data_loader=train_set_loader,
                 model=model,
                 metric_tracker=metric_tracker_train,
+                progress_panel=epoch_progress,
+                progress_tracker=train_epoch_progress,
+                overall_progress=overall_progress,
+                overall_task=overall_task,
             )
-            eval(
-                epoch,
-                data_loader=val_set_loader,
-                model=model,
-                metric_tracker=metric_tracker_val,
-            )
+            with torch.no_grad():
+                eval(
+                    epoch,
+                    data_loader=val_set_loader,
+                    model=model,
+                    metric_tracker=metric_tracker_val,
+                    progress_panel=epoch_progress,
+                    progress_tracker=val_epoch_progress,
+                    overall_progress=overall_progress,
+                    overall_task=overall_task,
+                )
+
             scheduler.step()
 
             metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")
@@ -334,26 +462,14 @@ if __name__ == "__main__":
                     "scheduler": scheduler.state_dict(),
                 }
 
-                current_epoch_filename = "{}_ckpt.pth.tar".format(epoch)
-                latest_epoch_filename = "latest_ckpt.pth.tar".format(epoch)
-
-                epoch_pbar.set_description(
-                    "Saving at {}/{}".format(
-                        saved_models_filepath, current_epoch_filename
-                    )
-                )
+                current_epoch_filename = f"{epoch}_ckpt.pth.tar"
+                latest_epoch_filename = "latest_ckpt.pth.tar"
 
                 save_checkpoint(
                     state=state,
                     directory=saved_models_filepath,
                     filename=current_epoch_filename,
                     is_best=False,
-                )
-
-                epoch_pbar.set_description(
-                    "Saving at {}/{}".format(
-                        saved_models_filepath, latest_epoch_filename
-                    )
                 )
 
                 save_checkpoint(
@@ -364,10 +480,14 @@ if __name__ == "__main__":
                 )
             ############################################################################################################
 
-            epoch_pbar.set_description("")
-            epoch_pbar.update(1)
-
         if args.test:
+            test_progress_dict = {
+                **dict(description="[green]Training", total=len(test_set_loader)),
+                **metric_tracker_test.get_current_iteration_metric_text_column_fields(),
+            }
+
+            test_epoch_progress = epoch_progress.add_task(**test_progress_dict)
+
             if args.val_set_percentage >= 0.0:
                 best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
                     evaluation_metric=np.argmax, metric_name="accuracy_mean"
@@ -383,6 +503,9 @@ if __name__ == "__main__":
                 model=model,
                 data_loader=test_set_loader,
                 metric_tracker=metric_tracker_test,
+                progress_panel=epoch_progress,
+                progress_tracker=test_epoch_progress,
+
             )
 
             metric_tracker_test.save()

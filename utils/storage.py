@@ -9,6 +9,8 @@ from collections import OrderedDict
 import scipy
 import json
 import os
+from rich import print
+
 
 
 def isfloat(x):
@@ -29,7 +31,7 @@ def save_dict_in_json(path, metrics_dict, overwrite):
     """
 
     if path.endswith(".json"):
-        path.replace(".json", "")
+        path = path.replace(".json", "")
 
     metrics_file_path = path
 

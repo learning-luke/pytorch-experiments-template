@@ -8,6 +8,7 @@ from torch.utils.data import Subset
 
 from datasets.custom_transforms import SimCLRTransform
 from utils.cinic_utils import enlarge_cinic_10, download_cinic
+from rich import print
 
 ImageShape = namedtuple("ImageShape", ["channels", "width", "height"])
 
@@ -35,7 +36,7 @@ class MNISTLoader:
         train_set = datasets.MNIST(
             data_filepath, train=True, download=download, transform=self.transform_train
         )
-        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_training_items = int(len(train_set) * (1.0 - val_set_percentage))
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
@@ -175,7 +176,7 @@ class CIFAR100Loader:
             transform=self.transform_train,
         )
 
-        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_training_items = int(len(train_set) * (1.0 - val_set_percentage))
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
@@ -223,7 +224,7 @@ class ImageNetLoader:
 
         train_set = datasets.ImageFolder(train_dir, self.transform_train)
 
-        num_training_items = int(len(train_set) * 1.0 - val_set_percentage)
+        num_training_items = int(len(train_set) * (1.0 - val_set_percentage))
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(

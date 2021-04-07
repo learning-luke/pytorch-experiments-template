@@ -1,6 +1,7 @@
 import time
 import os
 import GPUtil
+from rich import print
 
 # explicit by pass of the below
 
