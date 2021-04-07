@@ -1,17 +1,16 @@
-import os
-import torch
 import numpy as np
+import torch
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from rich.console import Console
 from rich.progress import TextColumn
 from rich.table import Table
 import matplotlib.pyplot as plt
 
-
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()
     return float(np.mean(acc)) * 100
-
 
 class MetricTracker:
     def __init__(
@@ -22,7 +21,7 @@ class MetricTracker:
         path="",
     ):
         if metrics_to_track is None:
-            self.metrics_to_track = {
+            metrics_to_track = {
                 "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
                 "accuracy": compute_accuracy,
             }
@@ -39,21 +38,12 @@ class MetricTracker:
         self.metrics = {}
 
         self.tracker_name = tracker_name
-
-        if not path.endswith(".pt"):
-            self.path = f"{path}.pt"
-        else:
-            self.path = path
-
-        #  set up the metrics dictionary as combo of track and receive
-        for k in self.metrics_to_receive:
+        self.metrics = {"epochs": [], "iterations": []}
+        self.path = path
+        for k, _ in metrics_to_track.items():
             self.metrics[k] = []
-
-        for k, _ in self.metrics_to_track.items():
-            self.metrics[k] = []
-
         if load and os.path.isfile(path):
-            metrics_from_file = torch.load(self.path)
+            metrics_from_file = load_metrics_dict_from_pt(path=path)
             self.metrics = metrics_from_file
 
         # set up a table for printing
@@ -121,6 +111,7 @@ class MetricTracker:
 
         torch.save(self.metrics, self.path)
 
+
     def collect_per_epoch(self):
         epoch_metrics = {"epochs": []}
         for k, _ in self.metrics_to_track.items():
@@ -141,6 +132,7 @@ class MetricTracker:
                         v_std = np.std(v[where_metrics])
                         epoch_metrics["{}_mean".format(k)].append(v_mean)
                         epoch_metrics["{}_std".format(k)].append(v_std)
+
         return epoch_metrics
 
     def get_best_epoch_for_metric(self, metric_name, evaluation_metric=np.argmax):

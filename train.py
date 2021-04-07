@@ -218,7 +218,6 @@ if __name__ == "__main__":
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids_to_use.replace(" ", ",")
 
     from datasets.dataset_loading_hub import load_dataset
-
     import torch
     import torch.nn as nn
     import torch.optim as optim
@@ -291,7 +290,11 @@ if __name__ == "__main__":
 
     ######################################################################################################### Model
 
-    model = model_zoo[args.model.type](num_classes=num_classes).to(device)
+    model = get_model(
+        model_type=args.model.type,
+        num_classes=num_classes,
+        dataset_name=args.dataset_name,
+    ).to(device)
 
     # alternatively one can define a model directly as follows
     # ```
@@ -441,6 +444,7 @@ if __name__ == "__main__":
                     overall_progress=overall_progress,
                     overall_task=overall_task,
                 )
+
             scheduler.step()
 
             metric_tracker_train.plot(path=f"{images_filepath}/train/metrics.png")
@@ -501,6 +505,7 @@ if __name__ == "__main__":
                 metric_tracker=metric_tracker_test,
                 progress_panel=epoch_progress,
                 progress_tracker=test_epoch_progress,
+
             )
 
             metric_tracker_test.save()

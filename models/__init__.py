@@ -1,6 +1,6 @@
+from .densenet import *
 from .resnet import *
 from .wresnet import *
-from .densenet import *
 
 model_zoo = {
     "ResNet9": ResNet9,
