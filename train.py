@@ -235,10 +235,15 @@ if __name__ == "__main__":
 
     #  if you have an environment variable set, prioritise this over the default argparse option
     environment_data_filepath = os.environ.get("PYTORCH_DATA_LOC")
-    if environment_data_filepath is not None:
+    if environment_data_filepath is not None and os.path.exists(
+        environment_data_filepath
+    ):
         logging.warning(
             f"You have a data filepath set in your environment: {environment_data_filepath}. This will override argparse."
         )
+        data_filepath = environment_data_filepath
+    else:
+        data_filepath = args.data_filepath
     (
         train_set_loader,
         val_set_loader,
@@ -290,10 +295,8 @@ if __name__ == "__main__":
 
     ######################################################################################################### Model
 
-    model = get_model(
-        model_type=args.model.type,
+    model = model_zoo[args.model.type](
         num_classes=num_classes,
-        dataset_name=args.dataset_name,
     ).to(device)
 
     # alternatively one can define a model directly as follows
@@ -505,7 +508,6 @@ if __name__ == "__main__":
                 metric_tracker=metric_tracker_test,
                 progress_panel=epoch_progress,
                 progress_tracker=test_epoch_progress,
-
             )
 
             metric_tracker_test.save()
