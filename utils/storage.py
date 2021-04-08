@@ -215,7 +215,7 @@ def get_best_performing_epoch_on_target_metric(
     return best_model_epoch, best_target_metric
 
 
-def print_network_stats(model):
+def print_network_stats(net):
     """
     Utility for printing how many parameters and weights in the network
     :param net: network to observe
