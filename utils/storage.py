@@ -12,7 +12,6 @@ import os
 from rich import print
 
 
-
 def isfloat(x):
     return isinstance(x, float)
 
@@ -97,7 +96,7 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     torch.save(metrics_dict, metrics_file_path)
 
 
-def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar"):
+def save_checkpoint(state, directory="", val_history=None, save_k_top_val_models=1):
     """
     Checkpoint saving utility, to ensure that the checkpoints are saved in the right place
     :param state: this is what gets saved.
@@ -106,16 +105,19 @@ def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar")
     :param filename: using this filename
     :return: nothing, just save things
     """
-    save_path = "{}/{}".format(directory, filename) if directory != "" else filename
+    save_path = f"{directory}/latest_ckpt.pth.tar" if directory != "" else filename
     torch.save(state, save_path)
 
-    if is_best:
-        best_save_path = (
-            "{}/best_{}".format(directory, filename)
+    acc_of_this_model = val_history[-1]
+    rank_of_this_model = sorted(val_history, reverse=True).index(acc_of_this_model)
+
+    if rank_of_this_model < save_k_top_val_models:
+        save_path = (
+            f"{directory}/best_{rank_of_this_model}_ckpt.pth.tar"
             if directory != ""
-            else "best_{}".format(filename)
+            else filename
         )
-        shutil.copyfile(save_path, best_save_path)
+        torch.save(state, save_path)
 
 
 def restore_model(restore_fields, path, epoch=None, device="cpu"):

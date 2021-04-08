@@ -59,6 +59,7 @@ def get_base_argument_parser():
     # logging
     parser.add_argument("--experiment_name", type=str, default="dev")
     parser.add_argument("--logs_path", type=str, default="log")
+    parser.add_argument("--save_k_top_val_models", type=int, default=1)
 
     parser.add_argument("--filepath_to_arguments_json_config", type=str, default=None)
 
@@ -296,7 +297,7 @@ if __name__ == "__main__":
     ######################################################################################################### Model
 
     model = model_zoo[args.model.type](
-        num_classes=num_classes,
+        num_classes=num_classes, in_channels=data_shape.channels
     ).to(device)
 
     # alternatively one can define a model directly as follows
@@ -465,21 +466,11 @@ if __name__ == "__main__":
                     "scheduler": scheduler.state_dict(),
                 }
 
-                current_epoch_filename = f"{epoch}_ckpt.pth.tar"
-                latest_epoch_filename = "latest_ckpt.pth.tar"
-
                 save_checkpoint(
                     state=state,
                     directory=saved_models_filepath,
-                    filename=current_epoch_filename,
-                    is_best=False,
-                )
-
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=latest_epoch_filename,
-                    is_best=False,
+                    val_history=metric_tracker_val.metrics["accuracy"],
+                    save_k_top_val_models=args.save_k_top_val_models,
                 )
             ############################################################################################################
 

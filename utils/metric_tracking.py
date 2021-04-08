@@ -15,6 +15,7 @@ import seaborn as sns
 
 sns.set()
 
+
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()
     return float(np.mean(acc)) * 100
@@ -90,18 +91,6 @@ class MetricTracker:
             else (f"{value[-1]:0.2f}" if isinstance(value[-1], float) else value[-1])
             for key, value in self.metrics.items()
         }
-
-    def get_current_iteration_metric_trace_string(self):
-        return "".join(
-            [
-                (
-                    "{}: {:0.4f}; ".format(key, value[-1])
-                    if isinstance(value[-1], float)
-                    else ""
-                )
-                for key, value in self.metrics.items()
-            ]
-        ).replace("(", "")
 
     def update_per_epoch_table(
         self,
