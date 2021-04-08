@@ -11,7 +11,9 @@ from rich.table import Table
 import matplotlib.pyplot as plt
 
 from utils.storage import load_metrics_dict_from_pt
+import seaborn as sns
 
+sns.set()
 
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()

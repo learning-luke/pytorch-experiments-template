@@ -423,7 +423,7 @@ if __name__ == "__main__":
 
     train_iterations = 0
 
-    with Live(progress_table, refresh_per_second=1):
+    with Live(progress_table, refresh_per_second=10) as interface_panel:
         for epoch in range(start_epoch, args.max_epochs):
 
             train(
