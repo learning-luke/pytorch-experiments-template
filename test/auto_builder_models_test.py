@@ -6,6 +6,8 @@ from models.auto_builder_models import (
 
 import torch
 
+from models.resnet import LinearWithFancyAttention
+
 RUN_CUDA_TESTS = False
 
 
@@ -39,6 +41,18 @@ def test_EasyPeasyConvNet_layer_output_shape():
     assert out.shape[1] == 10
     assert len(out.shape) == 2
 
+def test_LinearWithFancyAttention_output_shape():
+    model = LinearWithFancyAttention(
+        in_features=100,
+        out_features=50,
+        bias=True
+    )
+    dummy_x = torch.zeros((8, 100))
+    model, dummy_x = apply_to_test_device(model, dummy_x)
+    out = model.forward(dummy_x)
+
+    assert out.shape[1] == 50
+    assert len(out.shape) == 2
 
 def test_EasyPeasyConvRelationalNet_layer_output_shape():
     model = EasyPeasyConvRelationalNet(

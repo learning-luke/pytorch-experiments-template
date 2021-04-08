@@ -4,6 +4,8 @@ Reference:
 [1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
     Deep Residual Learning for Image Recognition. arXiv:1512.03385
 """
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,6 +25,10 @@ __all__ = [
     "PreActResNet101",
     "PreActResNet152",
 ]
+
+from torch import Tensor
+
+from torch.nn import Parameter, init
 
 
 class BasicBlock(nn.Module):
@@ -176,6 +182,137 @@ class PreActBottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
         super(ResNet, self).__init__()
+        self.in_planes = 64
+
+        if variant == "imagenet":
+            self.conv1 = nn.Conv2d(
+                in_channels,
+                64,
+                kernel_size=7 if variant == "imagenet" else 3,
+                stride=2 if variant == "imagenet" else 1,
+                padding=3 if variant == "imagenet" else 1,
+                bias=False,
+            )
+        else:
+            self.conv1 = nn.Conv2d(
+                in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False
+            )
+
+        self.bn1 = nn.BatchNorm2d(64)
+
+        #  this pooling is only needed for imagenet-sized images
+        self.maxpool = (
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            if variant == "imagenet"
+            else nn.Identity()
+        )
+
+        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
+
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+
+        self.linear = nn.Linear(512 * block.expansion, num_classes)
+
+    def _make_layer(self, block, planes, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_planes, planes, stride))
+            self.in_planes = planes * block.expansion
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        layer0 = F.relu(self.bn1(self.conv1(x)))
+        maxpool = self.maxpool(layer0)
+        layer1 = self.layer1(maxpool)
+        layer2 = self.layer2(layer1)
+        layer3 = self.layer3(layer2)
+        layer4 = self.layer4(layer3)
+        avgpool = torch.flatten(self.avgpool(layer4), 1)
+        logits = self.linear(avgpool)
+        return logits, (layer0, maxpool, layer1, layer2, layer3, layer4, avgpool)
+
+
+class LinearWithFancyAttention(nn.Module):
+    r"""Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
+
+    This module supports :ref:`TensorFloat32<tf32_on_ampere>`.
+
+    Args:
+        in_features: size of each input sample
+        out_features: size of each output sample
+        bias: If set to ``False``, the layer will not learn an additive bias.
+            Default: ``True``
+
+    Shape:
+        - Input: :math:`(N, *, H_{in})` where :math:`*` means any number of
+          additional dimensions and :math:`H_{in} = \text{in\_features}`
+        - Output: :math:`(N, *, H_{out})` where all but the last dimension
+          are the same shape as the input and :math:`H_{out} = \text{out\_features}`.
+
+    Attributes:
+        weight: the learnable weights of the module of shape
+            :math:`(\text{out\_features}, \text{in\_features})`. The values are
+            initialized from :math:`\mathcal{U}(-\sqrt{k}, \sqrt{k})`, where
+            :math:`k = \frac{1}{\text{in\_features}}`
+        bias:   the learnable bias of the module of shape :math:`(\text{out\_features})`.
+                If :attr:`bias` is ``True``, the values are initialized from
+                :math:`\mathcal{U}(-\sqrt{k}, \sqrt{k})` where
+                :math:`k = \frac{1}{\text{in\_features}}`
+
+    Examples::
+
+        >>> m = nn.Linear(20, 30)
+        >>> input = torch.randn(128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([128, 30])
+    """
+    __constants__ = ["in_features", "out_features"]
+    in_features: int
+    out_features: int
+    weight: Tensor
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
+        super(LinearWithFancyAttention, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = Parameter(torch.Tensor(in_features, out_features))
+        self.weight_attention = nn.Linear(
+            in_features=in_features, out_features=out_features * in_features, bias=True
+        )
+        if bias:
+            self.bias = Parameter(torch.Tensor(out_features))
+        else:
+            self.register_parameter("bias", None)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias is not None:
+            fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in)
+            init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, input: Tensor) -> Tensor:
+        batch_weight_shape = [input.shape[0]] + list(self.weight.shape)
+        attended_weights = self.weight * F.sigmoid(
+            self.weight_attention(input).view(batch_weight_shape)
+        )
+        return torch.bmm(input.unsqueeze(dim=1), attended_weights).squeeze() + self.bias
+
+    def extra_repr(self) -> str:
+        return "in_features={}, out_features={}, bias={}".format(
+            self.in_features, self.out_features, self.bias is not None
+        )
+
+
+class ResNetWithFancyAttentionalLinear(nn.Module):
+    def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
+        super(ResNetWithFancyAttentionalLinear, self).__init__()
         self.in_planes = 64
 
         if variant == "imagenet":

@@ -181,5 +181,4 @@ class MetricTracker:
             ax.set_xlabel("epochs")
         fig.tight_layout()
         fig.savefig(path, dpi=100)
-        plt.close(fig)
-        del fig
+
