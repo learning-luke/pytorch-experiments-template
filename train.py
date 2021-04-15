@@ -61,9 +61,8 @@ def get_base_argument_parser():
     parser.add_argument("--logs_path", type=str, default="log")
 
     parser.add_argument("--filepath_to_arguments_json_config", type=str, default=None)
-
-    parser.add_argument("--save", dest="save", default=True, action="store_true")
-    parser.add_argument("--nosave", dest="save", default=True, action="store_false")
+    
+    parser.add_argument("--save_top_n_val_models", type=int, default=1)
 
     # model
     parser.add_argument("--model.type", type=str, default="ResNet18")
@@ -456,32 +455,33 @@ if __name__ == "__main__":
             metric_tracker_val.save()
 
             ################################################################################ Saving models
-            if args.save:
-                state = {
-                    "args": args,
-                    "epoch": epoch,
-                    "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "scheduler": scheduler.state_dict(),
-                }
+        
+            state = {
+                "args": args,
+                "epoch": epoch,
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+            }
 
-                current_epoch_filename = f"{epoch}_ckpt.pth.tar"
-                latest_epoch_filename = "latest_ckpt.pth.tar"
-
+            n_best_epochs = metric_tracker_val.get_best_n_epochs_for_metric("accuracy", n=args.save_top_n_val_models) 
+            
+            if epoch in n_best_epochs:
                 save_checkpoint(
                     state=state,
                     directory=saved_models_filepath,
-                    filename=current_epoch_filename,
-                    is_best=False,
+                    filename=args.experiment_name,
+                    is_best=True,
+                    rank=n_best_epochs.index(epoch),
                 )
 
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=latest_epoch_filename,
-                    is_best=False,
-                )
-            ############################################################################################################
+            save_checkpoint(
+                state=state,
+                directory=saved_models_filepath,
+                filename=args.experiment_name,
+                is_best=False,
+            )
+        ############################################################################################################
 
         if args.test:
             test_progress_dict = {

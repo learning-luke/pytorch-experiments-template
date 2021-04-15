@@ -97,7 +97,7 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     torch.save(metrics_dict, metrics_file_path)
 
 
-def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar"):
+def save_checkpoint(state, is_best, directory="", filename="", rank=0):
     """
     Checkpoint saving utility, to ensure that the checkpoints are saved in the right place
     :param state: this is what gets saved.
@@ -106,17 +106,12 @@ def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar")
     :param filename: using this filename
     :return: nothing, just save things
     """
-    save_path = "{}/{}".format(directory, filename) if directory != "" else filename
-    torch.save(state, save_path)
-
     if is_best:
-        best_save_path = (
-            "{}/best_{}".format(directory, filename)
-            if directory != ""
-            else "best_{}".format(filename)
-        )
-        shutil.copyfile(save_path, best_save_path)
+        save_path = f"{directory}/rank_{rank}_{filename}.ckpt"
+    else:
+        save_path = f"{directory}/latest_{filename}.ckpt"
 
+    torch.save(state, save_path)
 
 def restore_model(restore_fields, path, epoch=None, device="cpu"):
     """

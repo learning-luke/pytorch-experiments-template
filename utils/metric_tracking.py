@@ -145,9 +145,17 @@ class MetricTracker:
 
         return epoch_metrics
 
-    def get_best_epoch_for_metric(self, metric_name, evaluation_metric=np.argmax):
-        return evaluation_metric(self.collect_per_epoch()[metric_name])
+    def get_best_n_epochs_for_metric(self, metric_name, n=1, bigger_is_better=True):
+        results_for_all_epochs = np.array(
+            self.collect_per_epoch()[f"{metric_name}_mean"]
+        )
+        sorted_epochs = np.argsort(results_for_all_epochs)
 
+        if bigger_is_better:
+            return list(sorted_epochs[-n:])
+        else:
+            return list(sorted_epochs[:n])
+    
     def plot(self, path, plot_std_dev=True):
         epoch_metrics = self.collect_per_epoch()
 
