@@ -29,7 +29,7 @@ class MetricTracker:
         path="",
     ):
         if metrics_to_track is None:
-            metrics_to_track = {
+            self.metrics_to_track = {
                 "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
                 "accuracy": compute_accuracy,
             }
@@ -49,7 +49,7 @@ class MetricTracker:
         self.path = path
         for k in self.metrics_to_receive:
             self.metrics[k] = []
-        for k, _ in metrics_to_track.items():
+        for k, _ in self.metrics_to_track.items():
             self.metrics[k] = []
         if load and os.path.isfile(path):
             metrics_from_file = load_metrics_dict_from_pt(path=path)
