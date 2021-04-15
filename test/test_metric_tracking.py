@@ -19,7 +19,7 @@ def test_compute_accuracy():
     for i, logit in enumerate(logits):
         targets[i] = torch.argmax(logit)
 
-    assert compute_accuracy(logits, targets) == 1.0
+    assert compute_accuracy(logits, targets) == 100.0
 
 
 def test_push():
@@ -29,23 +29,6 @@ def test_push():
         self.metrics["iterations"].append(iteration)
         for k, fnc in self.metrics_to_track.items():
             self.metrics[k].append(fnc(logits, targets))
-    """
-    pass
-
-
-def test_get_current_iteration_metric_trace_string():
-    """
-    def get_current_iteration_metric_trace_string(self):
-        return "".join(
-            [
-                (
-                    f"{key}: {value[-1]:0.4f}; "
-                    if (key != "epochs" and key != "iterations")
-                    else ""
-                )
-                for key, value in self.metrics.items()
-            ]
-        ).replace("(", "")
     """
     pass
 

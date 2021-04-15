@@ -59,9 +59,10 @@ def get_base_argument_parser():
     # logging
     parser.add_argument("--experiment_name", type=str, default="dev")
     parser.add_argument("--logs_path", type=str, default="log")
+    parser.add_argument("--save_k_top_val_models", type=int, default=1)
 
     parser.add_argument("--filepath_to_arguments_json_config", type=str, default=None)
-    
+
     parser.add_argument("--save_top_n_val_models", type=int, default=1)
 
     # model
@@ -295,7 +296,7 @@ if __name__ == "__main__":
     ######################################################################################################### Model
 
     model = model_zoo[args.model.type](
-        num_classes=num_classes,
+        num_classes=num_classes, in_channels=data_shape.channels
     ).to(device)
 
     # alternatively one can define a model directly as follows
@@ -455,7 +456,7 @@ if __name__ == "__main__":
             metric_tracker_val.save()
 
             ################################################################################ Saving models
-        
+
             state = {
                 "args": args,
                 "epoch": epoch,
@@ -464,8 +465,10 @@ if __name__ == "__main__":
                 "scheduler": scheduler.state_dict(),
             }
 
-            n_best_epochs = metric_tracker_val.get_best_n_epochs_for_metric("accuracy", n=args.save_top_n_val_models) 
-            
+            n_best_epochs = metric_tracker_val.get_best_n_epochs_for_metric(
+                "accuracy", n=args.save_top_n_val_models
+            )
+
             if epoch in n_best_epochs:
                 save_checkpoint(
                     state=state,

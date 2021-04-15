@@ -12,7 +12,6 @@ import os
 from rich import print
 
 
-
 def isfloat(x):
     return isinstance(x, float)
 

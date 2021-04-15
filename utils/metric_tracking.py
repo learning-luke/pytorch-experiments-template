@@ -15,6 +15,7 @@ import seaborn as sns
 
 sns.set()
 
+
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()
     return float(np.mean(acc)) * 100
@@ -91,18 +92,6 @@ class MetricTracker:
             for key, value in self.metrics.items()
         }
 
-    def get_current_iteration_metric_trace_string(self):
-        return "".join(
-            [
-                (
-                    "{}: {:0.4f}; ".format(key, value[-1])
-                    if isinstance(value[-1], float)
-                    else ""
-                )
-                for key, value in self.metrics.items()
-            ]
-        ).replace("(", "")
-
     def update_per_epoch_table(
         self,
     ):
@@ -155,7 +144,7 @@ class MetricTracker:
             return list(sorted_epochs[-n:])
         else:
             return list(sorted_epochs[:n])
-    
+
     def plot(self, path, plot_std_dev=True):
         epoch_metrics = self.collect_per_epoch()
 
@@ -189,4 +178,3 @@ class MetricTracker:
             ax.set_xlabel("epochs")
         fig.tight_layout()
         fig.savefig(path, dpi=100)
-        
