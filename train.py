@@ -47,7 +47,7 @@ def get_base_argument_parser():
     )
 
     parser.add_argument("--dataset_name", type=str, default="cifar10")
-    parser.add_argument("--data_filepath", type=str, default="../data/cifar10")
+    parser.add_argument("--data_filepath", type=str, default="../data")
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--eval_batch_size", type=int, default=256)
 
@@ -59,8 +59,6 @@ def get_base_argument_parser():
     # logging
     parser.add_argument("--experiment_name", type=str, default="dev")
     parser.add_argument("--logs_path", type=str, default="log")
-    parser.add_argument("--save_k_top_val_models", type=int, default=1)
-
     parser.add_argument("--filepath_to_arguments_json_config", type=str, default=None)
 
     parser.add_argument("--save_top_n_val_models", type=int, default=1)
@@ -345,7 +343,9 @@ if __name__ == "__main__":
 
     start_epoch = 0
     if args.resume:
-        resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
+        resume_epoch = restore_model(restore_fields, filename=args.experiment_name, directory=saved_models_filepath,
+                    epoch_idx=None)
+
         if resume_epoch == -1:
             raise IOError(
                 f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
@@ -465,18 +465,15 @@ if __name__ == "__main__":
                 "scheduler": scheduler.state_dict(),
             }
 
-            n_best_epochs = metric_tracker_val.get_best_n_epochs_for_metric(
-                "accuracy", n=args.save_top_n_val_models
+            metric_tracker_val.refresh_best_n_epoch_models(
+                directory=saved_models_filepath,
+                filename=args.experiment_name,
+                metric_name='accuracy',
+                n=args.save_top_n_val_models,
+                bigger_is_better=True,
+                current_epoch_idx=epoch,
+                current_epoch_state=state,
             )
-
-            if epoch in n_best_epochs:
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=args.experiment_name,
-                    is_best=True,
-                    rank=n_best_epochs.index(epoch),
-                )
 
             save_checkpoint(
                 state=state,
@@ -500,8 +497,9 @@ if __name__ == "__main__":
                 )
                 resume_epoch = restore_model(
                     restore_fields,
-                    path=saved_models_filepath,
-                    epoch=best_epoch_val_model,
+                    filename=args.experiment_name,
+                    directory=saved_models_filepath,
+                    epoch_idx=best_epoch_val_model,
                 )
 
             eval(
