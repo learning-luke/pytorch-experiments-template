@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.progress import TextColumn
 from rich.table import Table
 import matplotlib.pyplot as plt
-
+import time
 from utils.storage import load_metrics_dict_from_pt, save_checkpoint
 import seaborn as sns
 
@@ -38,12 +38,7 @@ class MetricTracker:
         else:
             self.metrics_to_track = metrics_to_track
 
-        self.metrics_to_receive = [
-            "epochs",
-            "iter",
-            "iter/s",
-            "epoch ETA",
-        ]
+        self.metrics_to_receive = ["epochs", "iter", "iter/s"]
         self.metrics = {}
 
         self.tracker_name = tracker_name
@@ -65,11 +60,11 @@ class MetricTracker:
         for key in self.collect_per_epoch().keys():
             self.per_epoch_table.add_column(key)
 
-    def push(self, epoch, iteration, data, batch_time, epoch_time, logits, targets):
+    def push(self, epoch, iteration, epoch_start_time, logits, targets):
+        time_taken = time.time() - epoch_start_time
         self.metrics["epochs"].append(epoch)
         self.metrics["iter"].append(iteration)
-        self.metrics["iter/s"].append(1.0 / batch_time)
-        self.metrics["epoch ETA"].append(epoch_time)
+        self.metrics["iter/s"].append((iteration + 1) / time_taken)
 
         for key, metric_function in self.metrics_to_track.items():
             self.metrics[key].append(metric_function(logits, targets))
@@ -198,7 +193,9 @@ class MetricTracker:
                 ]
 
                 for idx_to_remove in epoch_idx_models_to_remove:
-                    os.remove(f"{directory}/epoch_{idx_to_remove}_model_{filename}.ckpt")
+                    os.remove(
+                        f"{directory}/epoch_{idx_to_remove}_model_{filename}.ckpt"
+                    )
 
                 save_checkpoint(
                     state=current_epoch_state,

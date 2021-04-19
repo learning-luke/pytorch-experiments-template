@@ -123,13 +123,15 @@ def restore_model(restore_fields, directory, filename, epoch_idx=None, device="c
     :return: Nothing, only restore the network and optimizer.
     """
 
-    checkpoint_name = (
-        f"{directory}/latest_{filename}.ckpt" if epoch_idx == None else f"{directory}/epoch_{epoch_idx}_model_{filename}.ckpt"
+    checkpoint_filepath = (
+        f"{directory}/latest_{filename}.ckpt"
+        if epoch_idx == None
+        else f"{directory}/epoch_{epoch_idx}_model_{filename}.ckpt"
     )
 
-    if os.path.isfile("{}/{}".format(path, checkpoint_name)):
+    if os.path.isfile(checkpoint_filepath):
         checkpoint = torch.load(
-            "{}/{}".format(path, checkpoint_name),
+            checkpoint_filepath,
             map_location=lambda storage, loc: storage,
         )
 
