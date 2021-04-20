@@ -1,12 +1,8 @@
 import os
-from collections import defaultdict
 
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-from rich.console import Console
 from rich.progress import TextColumn
 from rich.table import Table
 import matplotlib.pyplot as plt

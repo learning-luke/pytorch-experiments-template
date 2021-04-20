@@ -1,32 +1,19 @@
 import argparse
-import json
-import os
-import numpy as np
-import tqdm
+import glob
 import logging
+import os
+import random
+import tarfile
+import time
 
+import numpy as np
 from rich.live import Live
-from rich.panel import Panel
-from rich.table import Table
 
 from models import model_zoo
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
 from utils.pretty_progress_reporting import PrettyProgressReporter
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
-import random
-import glob
-import tarfile
-import time
-from rich import print
-from rich.progress import (
-    Progress,
-    TextColumn,
-    BarColumn,
-    TimeRemainingColumn,
-    RenderableColumn,
-    SpinnerColumn,
-)
 
 
 def get_base_argument_parser():
@@ -174,7 +161,6 @@ if __name__ == "__main__":
     import torch
     import torch.nn as nn
     import torch.optim as optim
-    from torchvision.utils import save_image
     import torch.backends.cudnn as cudnn
     from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
     from utils.metric_tracking import MetricTracker, compute_accuracy
