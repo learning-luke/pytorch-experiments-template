@@ -14,7 +14,7 @@ from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
 from utils.pretty_progress_reporting import PrettyProgressReporter
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
-
+from pytorch_model_summary import summary
 
 def get_base_argument_parser():
     parser = argparse.ArgumentParser()
@@ -236,8 +236,11 @@ if __name__ == "__main__":
 
     model = model_zoo[args.model.type](
         num_classes=num_classes, in_channels=data_shape.channels
-    ).to(device)
+    )
 
+    print(summary(model, torch.zeros([1] + list(data_shape)), show_input=True, show_hierarchical=True))
+    
+    model = model.to(device)
     # alternatively one can define a model directly as follows
     # ```
     # model = ResNet18(num_classes=num_classes, variant=args.dataset_name).to(device)
@@ -248,8 +251,7 @@ if __name__ == "__main__":
             model
         )  # more efficient version of DataParallel
 
-    model = model.to(device)
-
+    
     ######################################################################################################### Optimisation
 
     params = model.parameters()
