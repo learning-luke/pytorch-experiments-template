@@ -47,7 +47,7 @@ def get_base_argument_parser():
     )
 
     parser.add_argument("--dataset_name", type=str, default="cifar10")
-    parser.add_argument("--data_filepath", type=str, default="../data/cifar10")
+    parser.add_argument("--data_filepath", type=str, default="../data")
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--eval_batch_size", type=int, default=256)
 
@@ -59,11 +59,9 @@ def get_base_argument_parser():
     # logging
     parser.add_argument("--experiment_name", type=str, default="dev")
     parser.add_argument("--logs_path", type=str, default="log")
-
     parser.add_argument("--filepath_to_arguments_json_config", type=str, default=None)
 
-    parser.add_argument("--save", dest="save", default=True, action="store_true")
-    parser.add_argument("--nosave", dest="save", default=True, action="store_false")
+    parser.add_argument("--save_top_n_val_models", type=int, default=1)
 
     # model
     parser.add_argument("--model.type", type=str, default="ResNet18")
@@ -296,7 +294,7 @@ if __name__ == "__main__":
     ######################################################################################################### Model
 
     model = model_zoo[args.model.type](
-        num_classes=num_classes,
+        num_classes=num_classes, in_channels=data_shape.channels
     ).to(device)
 
     # alternatively one can define a model directly as follows
@@ -345,7 +343,9 @@ if __name__ == "__main__":
 
     start_epoch = 0
     if args.resume:
-        resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
+        resume_epoch = restore_model(restore_fields, filename=args.experiment_name, directory=saved_models_filepath,
+                    epoch_idx=None)
+
         if resume_epoch == -1:
             raise IOError(
                 f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
@@ -456,32 +456,32 @@ if __name__ == "__main__":
             metric_tracker_val.save()
 
             ################################################################################ Saving models
-            if args.save:
-                state = {
-                    "args": args,
-                    "epoch": epoch,
-                    "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "scheduler": scheduler.state_dict(),
-                }
 
-                current_epoch_filename = f"{epoch}_ckpt.pth.tar"
-                latest_epoch_filename = "latest_ckpt.pth.tar"
+            state = {
+                "args": args,
+                "epoch": epoch,
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+            }
 
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=current_epoch_filename,
-                    is_best=False,
-                )
+            metric_tracker_val.refresh_best_n_epoch_models(
+                directory=saved_models_filepath,
+                filename=args.experiment_name,
+                metric_name='accuracy',
+                n=args.save_top_n_val_models,
+                bigger_is_better=True,
+                current_epoch_idx=epoch,
+                current_epoch_state=state,
+            )
 
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=latest_epoch_filename,
-                    is_best=False,
-                )
-            ############################################################################################################
+            save_checkpoint(
+                state=state,
+                directory=saved_models_filepath,
+                filename=args.experiment_name,
+                is_best=False,
+            )
+        ############################################################################################################
 
         if args.test:
             test_progress_dict = {
@@ -497,8 +497,9 @@ if __name__ == "__main__":
                 )
                 resume_epoch = restore_model(
                     restore_fields,
-                    path=saved_models_filepath,
-                    epoch=best_epoch_val_model,
+                    filename=args.experiment_name,
+                    directory=saved_models_filepath,
+                    epoch_idx=best_epoch_val_model,
                 )
 
             eval(
