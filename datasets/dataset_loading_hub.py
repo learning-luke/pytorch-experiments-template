@@ -32,7 +32,7 @@ class MNISTLoader:
             ]
         )
 
-    def get_data(self, data_filepath, val_set_percentage, download=False, random_split_seed=1):
+    def get_data(self, data_filepath, val_set_percentage, random_split_seed, download=False):
         train_set = datasets.MNIST(
             data_filepath, train=True, download=download, transform=self.transform_train
         )
@@ -121,7 +121,7 @@ class CIFAR10Loader:
             ]
         )
 
-    def get_data(self, data_filepath, val_set_percentage, download=False, random_split_seed=1):
+    def get_data(self, data_filepath, val_set_percentage, random_split_seed, download=False):
         train_set = datasets.CIFAR10(
             root=data_filepath,
             train=True,
@@ -170,7 +170,7 @@ class CIFAR100Loader:
             ]
         )
 
-    def get_data(self, data_filepath, val_set_percentage, download=False, random_split_seed=1):
+    def get_data(self, data_filepath, val_set_percentage, random_split_seed, download=False):
         train_set = datasets.CIFAR100(
             root=data_filepath,
             train=True,
@@ -221,7 +221,7 @@ class ImageNetLoader:
             ]
         )
 
-    def get_data(self, data_filepath, val_set_percentage, random_split_seed=1, **kwargs):
+    def get_data(self, data_filepath, val_set_percentage, random_split_seed, **kwargs):
         train_dir = os.path.join(data_filepath, "train")
         val_dir = os.path.join(data_filepath, "val")
 
@@ -250,6 +250,7 @@ def load_dataset(
     num_workers=0,
     download=False,
     val_set_percentage=0.0,
+    random_split_seed=1
 ):
 
     datasets = {
@@ -267,7 +268,8 @@ def load_dataset(
     ###
 
     train_set, val_set, test_set, num_labels = dataloader.get_data(
-        data_filepath, val_set_percentage=val_set_percentage, download=download
+        data_filepath, val_set_percentage=val_set_percentage, 
+        random_split_seed=random_split_seed, download=download,
     )
 
     train_loader = torch.utils.data.DataLoader(
