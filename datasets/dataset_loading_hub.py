@@ -40,7 +40,8 @@ class MNISTLoader:
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
-            train_set, [num_training_items, num_val_items]
+            train_set, [num_training_items, num_val_items],
+            generator=torch.Generator().manual_seed(1)
         )
 
         test_set = datasets.MNIST(
@@ -132,7 +133,8 @@ class CIFAR10Loader:
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
-            train_set, [num_training_items, num_val_items]
+            train_set, [num_training_items, num_val_items],
+            generator=torch.Generator().manual_seed(1)
         )
 
         test_set = datasets.CIFAR10(
@@ -180,7 +182,8 @@ class CIFAR100Loader:
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
-            train_set, [num_training_items, num_val_items]
+            train_set, [num_training_items, num_val_items],
+            generator=torch.Generator().manual_seed(1)
         )
 
         test_set = datasets.CIFAR100(
@@ -228,7 +231,8 @@ class ImageNetLoader:
         num_val_items = len(train_set) - num_training_items
 
         train_set, val_set = torch.utils.data.random_split(
-            train_set, [num_training_items, num_val_items]
+            train_set, [num_training_items, num_val_items],
+            generator=torch.Generator().manual_seed(1)
         )
 
         test_set = datasets.ImageFolder(val_dir, self.transform_validate)
