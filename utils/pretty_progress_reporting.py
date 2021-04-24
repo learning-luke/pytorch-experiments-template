@@ -29,7 +29,7 @@ class PrettyProgressReporter:
             **val_metric_tracker.get_current_iteration_metric_text_column_fields(),
         }
 
-        self.progress_tracker = dict()
+        self.progress_tracker = {}
 
         self.progress_tracker["training"] = self.epoch_progress.add_task(
             **train_progress_dict

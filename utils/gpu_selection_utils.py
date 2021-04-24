@@ -27,7 +27,8 @@ def select_devices(num_gpus_to_use, max_load, max_memory, exclude_gpu_ids):
             )
 
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
-            [str(gpu_idx) for gpu_idx in gpu_to_use]
+            str(gpu_idx) for gpu_idx in gpu_to_use
         )
+
 
         print("GPUs selected have IDs {}".format(os.environ["CUDA_VISIBLE_DEVICES"]))

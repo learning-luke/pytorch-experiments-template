@@ -7,7 +7,7 @@ from collections import namedtuple
 from torch.utils.data import Subset
 
 from datasets.custom_transforms import SimCLRTransform
-from utils.cinic_utils import enlarge_cinic_10, download_cinic
+from utils.cinic_utils import extend_cinic_10, download_cinic
 from rich import print
 
 ImageShape = namedtuple("ImageShape", ["channels", "width", "height"])
@@ -81,7 +81,7 @@ class CINIC10Loader:
 
             download_cinic(data_filepath.replace("-enlarged", ""))
             if enlarge:
-                enlarge_cinic_10(data_filepath.replace("-enlarged", ""))
+                extend_cinic_10(data_filepath.replace("-enlarged", ""))
 
         train_set = datasets.ImageFolder(
             os.path.join(data_filepath, "train"), self.transform_train
@@ -324,8 +324,6 @@ def load_split_datasets(dataset, split_tuple):
         total_idx[start_idx:end_idx] for (start_idx, end_idx) in start_end_index_tuples
     ]
 
-    split_sets = (
+    return (
         Subset(dataset, set_indices) for set_indices in set_selection_index_lists
     )
-
-    return split_sets

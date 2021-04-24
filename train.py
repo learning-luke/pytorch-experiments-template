@@ -388,15 +388,6 @@ if __name__ == "__main__":
         ############################################################################################################
 
         if args.test:
-            test_progress_dict = {
-                **dict(description="[green]Training", total=len(test_set_loader)),
-                **metric_tracker_test.get_current_iteration_metric_text_column_fields(),
-            }
-
-            test_epoch_progress = progress_reporter.epoch_progress.add_task(
-                **test_progress_dict
-            )
-
             if args.val_set_percentage >= 0.0:
                 top_n_model_idx = metric_tracker_val.get_best_n_epochs_for_metric(
                     metric_name="accuracy", n=1, bigger_is_better=True

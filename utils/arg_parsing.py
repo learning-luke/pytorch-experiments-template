@@ -84,6 +84,7 @@ def add_extra_option_args(parser):
         help="A list of GPU IDs to exclude from the auto selection process",
     )
 
+
     return parser
 
 
@@ -100,7 +101,7 @@ def process_args(parser):
     if isinstance(args, argparse.Namespace):
         args = vars(args)
 
-    args_tree_like_structure = dict()
+    args_tree_like_structure = {}
 
     for key, value in args.items():
         if "." in key:
@@ -116,6 +117,10 @@ def process_args(parser):
 
         else:
             args_tree_like_structure[key] = value
+
+    for key, value in args_tree_like_structure.items():
+        if isinstance(value, dict):
+            args_tree_like_structure[key] = DictWithDotNotation(value)
 
     args = DictWithDotNotation(args_tree_like_structure)
     arg_summary_string = pprint.pformat(args, indent=4)

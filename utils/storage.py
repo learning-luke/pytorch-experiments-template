@@ -10,7 +10,9 @@ import scipy
 import json
 import os
 from rich import print
-
+import requests
+import tqdm  # progress bar
+import os.path
 
 def isfloat(x):
     return isinstance(x, float)
@@ -34,9 +36,8 @@ def save_dict_in_json(path, metrics_dict, overwrite):
 
     metrics_file_path = path
 
-    if overwrite:
-        if os.path.exists(metrics_file_path):
-            os.remove(metrics_file_path)
+    if overwrite and os.path.exists(metrics_file_path):
+        os.remove(metrics_file_path)
 
     with open("{}.json".format(metrics_file_path), "w+") as json_file:
         json.dump(metrics_dict, json_file, indent=4, sort_keys=True)
@@ -71,9 +72,7 @@ def load_metrics_dict_from_pt(path):
 
     metrics_file_path = path
 
-    metrics_dict = torch.load(metrics_file_path)
-
-    return metrics_dict
+    return torch.load(metrics_file_path)
 
 
 def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
@@ -89,9 +88,8 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
 
     metrics_file_path = path
 
-    if overwrite:
-        if os.path.exists(metrics_file_path):
-            os.remove(metrics_file_path)
+    if overwrite and os.path.exists(metrics_file_path):
+        os.remove(metrics_file_path)
 
     torch.save(metrics_dict, metrics_file_path)
 
@@ -125,31 +123,30 @@ def restore_model(restore_fields, directory, filename, epoch_idx=None, device="c
 
     checkpoint_filepath = (
         f"{directory}/latest_{filename}.ckpt"
-        if epoch_idx == None
+        if epoch_idx is None
         else f"{directory}/epoch_{epoch_idx}_model_{filename}.ckpt"
     )
 
-    if os.path.isfile(checkpoint_filepath):
-        checkpoint = torch.load(
-            checkpoint_filepath,
-            map_location=lambda storage, loc: storage,
-        )
-
-        for name, field in restore_fields.items():
-            new_state_dict = OrderedDict()
-            for k, v in checkpoint[name].items():
-                if "module" in k and (
-                    device == "cpu" or torch.cuda.device_count() == 1
-                ):
-                    name = k.replace("module.", "")  # remove module.
-                else:
-                    name = k
-                new_state_dict[name] = v
-
-            field.load_state_dict(new_state_dict)
-        return checkpoint["epoch"]
-    else:
+    if not os.path.isfile(checkpoint_filepath):
         return -1
+    checkpoint = torch.load(
+        checkpoint_filepath,
+        map_location=lambda storage, loc: storage,
+    )
+
+    for name, field in restore_fields.items():
+        new_state_dict = OrderedDict()
+        for k, v in checkpoint[name].items():
+            if "module" in k and (
+                device == "cpu" or torch.cuda.device_count() == 1
+            ):
+                name = k.replace("module.", "")  # remove module.
+            else:
+                name = k
+            new_state_dict[name] = v
+
+        field.load_state_dict(new_state_dict)
+    return checkpoint["epoch"]
 
 
 def build_experiment_folder(experiment_name, log_path, save_images=True):
@@ -201,35 +198,44 @@ def get_best_performing_epoch_on_target_metric(
     best_model_epoch = 0
     best_target_metric = None
 
-    if target_metric in metrics_dict:
-        if len(metrics_dict[target_metric]) != 0:
-            best_epoch_idx = ranking_method(metrics_dict[target_metric])
-            best_model_epoch, best_target_metric = (
-                metrics_dict["epoch"][best_epoch_idx],
-                metrics_dict[target_metric][best_epoch_idx],
-            )
+    if target_metric in metrics_dict and len(metrics_dict[target_metric]) != 0:
+        best_epoch_idx = ranking_method(metrics_dict[target_metric])
+        best_model_epoch, best_target_metric = (
+            metrics_dict["epoch"][best_epoch_idx],
+            metrics_dict[target_metric][best_epoch_idx],
+        )
 
     return best_model_epoch, best_target_metric
 
 
-def print_network_stats(net):
+def download_file(url, filename=False, verbose=False):
     """
-    Utility for printing how many parameters and weights in the network
-    :param net: network to observe
-    :return: nothing, just print
+    Download file with progressbar
+    __author__ = "github.com/ruxi"
+    __license__ = "MIT"
+    Usage:
+        download_file('http://web4host.net/5MB.zip')
     """
-    trainable_params_count = 0
-    trainable_weights_count = 0
-    for param in model.parameters():
-        weight_count = 1
-        for w in param.shape:
-            weight_count *= w
-        if param.requires_grad:
-            trainable_params_count += 1
-            trainable_weights_count += weight_count
+    if not filename:
+        local_filename = os.path.join(".", url.split("/")[-1])
+    else:
+        local_filename = filename
+    r = requests.get(url, stream=True)
+    file_size = int(r.headers["Content-Length"])
+    chunk_size = 1024
+    num_bars = int(file_size / chunk_size)
+    if verbose:
+        print(dict(file_size=file_size))
+        print(dict(num_bars=num_bars))
 
-    print(
-        "{} parameters and {} weights are trainable".format(
-            trainable_params_count, trainable_weights_count
-        )
-    )
+    with open(local_filename, "wb") as fp:
+        for chunk in tqdm.tqdm(
+            r.iter_content(chunk_size=chunk_size),
+            total=num_bars,
+            unit="KB",
+            desc=local_filename,
+            leave=True,  # progressbar stays
+        ):
+            fp.write(chunk)
+    return local_filename
+
