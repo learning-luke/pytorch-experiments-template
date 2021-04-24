@@ -12,7 +12,6 @@ import os
 from rich import print
 
 
-
 def isfloat(x):
     return isinstance(x, float)
 
@@ -97,7 +96,7 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     torch.save(metrics_dict, metrics_file_path)
 
 
-def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar"):
+def save_checkpoint(state, is_best, directory="", filename="", epoch_idx=None):
     """
     Checkpoint saving utility, to ensure that the checkpoints are saved in the right place
     :param state: this is what gets saved.
@@ -106,19 +105,15 @@ def save_checkpoint(state, is_best, directory="", filename="checkpoint.pth.tar")
     :param filename: using this filename
     :return: nothing, just save things
     """
-    save_path = "{}/{}".format(directory, filename) if directory != "" else filename
+    if is_best:
+        save_path = f"{directory}/epoch_{epoch_idx}_model_{filename}.ckpt"
+    else:
+        save_path = f"{directory}/latest_{filename}.ckpt"
+
     torch.save(state, save_path)
 
-    if is_best:
-        best_save_path = (
-            "{}/best_{}".format(directory, filename)
-            if directory != ""
-            else "best_{}".format(filename)
-        )
-        shutil.copyfile(save_path, best_save_path)
 
-
-def restore_model(restore_fields, path, epoch=None, device="cpu"):
+def restore_model(restore_fields, directory, filename, epoch_idx=None, device="cpu"):
     """
     Model restoration. This is built into the experiment framework and args.latest_loadpath should contain the path
     to the latest restoration point. This is automatically set in the framework
@@ -128,13 +123,15 @@ def restore_model(restore_fields, path, epoch=None, device="cpu"):
     :return: Nothing, only restore the network and optimizer.
     """
 
-    checkpoint_name = (
-        "latest_ckpt.pth.tar" if epoch == None else "{}_ckpt.pth.tar".format(epoch)
+    checkpoint_filepath = (
+        f"{directory}/latest_{filename}.ckpt"
+        if epoch_idx == None
+        else f"{directory}/epoch_{epoch_idx}_model_{filename}.ckpt"
     )
 
-    if os.path.isfile("{}/{}".format(path, checkpoint_name)):
+    if os.path.isfile(checkpoint_filepath):
         checkpoint = torch.load(
-            "{}/{}".format(path, checkpoint_name),
+            checkpoint_filepath,
             map_location=lambda storage, loc: storage,
         )
 

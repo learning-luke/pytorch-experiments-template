@@ -1,32 +1,20 @@
 import argparse
-import json
-import os
-import numpy as np
-import tqdm
+import glob
 import logging
+import os
+import random
+import tarfile
+import time
 
+import numpy as np
 from rich.live import Live
-from rich.panel import Panel
-from rich.table import Table
 
 from models import model_zoo
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
+from utils.pretty_progress_reporting import PrettyProgressReporter
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
-import random
-import glob
-import tarfile
-import time
-from rich import print
-from rich.progress import (
-    Progress,
-    TextColumn,
-    BarColumn,
-    TimeRemainingColumn,
-    RenderableColumn,
-    SpinnerColumn,
-)
-
+from pytorch_model_summary import summary
 
 def get_base_argument_parser():
     parser = argparse.ArgumentParser()
@@ -47,7 +35,7 @@ def get_base_argument_parser():
     )
 
     parser.add_argument("--dataset_name", type=str, default="cifar10")
-    parser.add_argument("--data_filepath", type=str, default="../data/cifar10")
+    parser.add_argument("--data_filepath", type=str, default="../data")
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--eval_batch_size", type=int, default=256)
 
@@ -59,23 +47,21 @@ def get_base_argument_parser():
     # logging
     parser.add_argument("--experiment_name", type=str, default="dev")
     parser.add_argument("--logs_path", type=str, default="log")
-
     parser.add_argument("--filepath_to_arguments_json_config", type=str, default=None)
 
-    parser.add_argument("--save", dest="save", default=True, action="store_true")
-    parser.add_argument("--nosave", dest="save", default=True, action="store_false")
+    parser.add_argument("--save_top_n_val_models", type=int, default=1)
 
     # model
-    parser.add_argument("--model.type", type=str, default="ResNet18")
+    parser.add_argument("--model.type", type=str, default="ResNet9")
     parser.add_argument("--model.dropout_rate", type=float, default=0.3)
 
     parser.add_argument("--val_set_percentage", type=float, default=0.1)
     # optimization
-    parser.add_argument("--learning_rate", type=float, default=0.1)
+    parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument(
         "--scheduler",
         type=str,
-        default="MultiStep",
+        default="CosineAnnealing",
         help="Scheduler for learning rate annealing: CosineAnnealing | MultiStep",
     )
     parser.add_argument(
@@ -85,7 +71,7 @@ def get_base_argument_parser():
         default=[60, 120, 160],
         help="Multi step scheduler annealing milestones",
     )
-    parser.add_argument("--optim", type=str, default="SGD", help="Optimizer?")
+    parser.add_argument("--optim", type=str, default="Adam", help="Optimizer?")
 
     parser.add_argument("--weight_decay", type=float, default=5e-4)
     parser.add_argument("--momentum", type=float, default=0.9)
@@ -98,27 +84,14 @@ def get_base_argument_parser():
 ######################################################################################################### Training
 
 
-def train(
-    epoch,
-    data_loader,
-    model,
-    metric_tracker,
-    progress_panel,
-    progress_tracker,
-    overall_progress,
-    overall_task,
-):
+def train(epoch, data_loader, model, metric_tracker, progress_reporter):
     model = model.train()
     # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
     num_batches = len(data_loader)
     epoch_start_time = time.time()
-    progress_panel.reset(progress_tracker)
-    for batch_idx, (inputs, targets) in enumerate(data_loader):
-        batch_time = time.time()
-        data_time = time.time()
 
+    for batch_idx, (inputs, targets) in enumerate(data_loader):
         inputs, targets = inputs.to(device), targets.to(device)
-        data_time = time.time() - data_time
 
         logits, features = model(inputs)
 
@@ -128,78 +101,45 @@ def train(
         loss.backward()
         optimizer.step()
 
-        batch_time = time.time() - batch_time
-
-        eta_time_epoch = ((time.time() - epoch_start_time) / (batch_idx + 1)) * (
-            num_batches - (batch_idx + 1)
-        )
-
         metric_tracker.push(
             epoch,
             batch_idx,
-            data_time,
-            batch_time,
-            eta_time_epoch,
+            epoch_start_time,
             logits,
             targets,
         )
 
-        iter_update_dict = {
-            **dict(task_id=progress_tracker, advance=1),
-            **metric_tracker.get_current_iteration_metric_text_column_fields(),
-        }
-        progress_panel.update(**iter_update_dict)
-        overall_progress.advance(overall_task, advance=1)
+        progress_reporter.update_progress_iter(
+            metric_tracker=metric_tracker, reset=batch_idx == 0
+        )
+
     metric_tracker.update_per_epoch_table()
 
 
-def eval(
-    epoch,
-    data_loader,
-    model,
-    metric_tracker,
-    progress_panel,
-    progress_tracker,
-    overall_progress,
-    overall_task,
-):
+def eval(epoch, data_loader, model, metric_tracker, progress_reporter):
     # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
     num_batches = len(data_loader)
     epoch_start_time = time.time()
     model = model.eval()
-    progress_panel.reset(progress_tracker)
 
     for batch_idx, (inputs, targets) in enumerate(data_loader):
-        batch_time = time.time()
-        data_time = time.time()
 
         inputs, targets = inputs.to(device), targets.to(device)
-        data_time = time.time() - data_time
 
         logits, features = model(inputs)
-
-        batch_time = time.time() - batch_time
-
-        eta_time_epoch = ((time.time() - epoch_start_time) / (batch_idx + 1)) * (
-            num_batches - (batch_idx + 1)
-        )
 
         metric_tracker.push(
             epoch,
             batch_idx,
-            data_time,
-            batch_time,
-            eta_time_epoch,
+            epoch_start_time,
             logits,
             targets,
         )
 
-        iter_update_dict = {
-            **dict(task_id=progress_tracker, advance=1),
-            **metric_tracker.get_current_iteration_metric_text_column_fields(),
-        }
-        progress_panel.update(**iter_update_dict)
-        overall_progress.advance(overall_task, advance=1)
+        progress_reporter.update_progress_iter(
+            metric_tracker=metric_tracker, reset=batch_idx == 0
+        )
+
     metric_tracker.update_per_epoch_table()
 
 
@@ -221,7 +161,6 @@ if __name__ == "__main__":
     import torch
     import torch.nn as nn
     import torch.optim as optim
-    from torchvision.utils import save_image
     import torch.backends.cudnn as cudnn
     from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
     from utils.metric_tracking import MetricTracker, compute_accuracy
@@ -296,9 +235,12 @@ if __name__ == "__main__":
     ######################################################################################################### Model
 
     model = model_zoo[args.model.type](
-        num_classes=num_classes,
-    ).to(device)
+        num_classes=num_classes, in_channels=data_shape.channels
+    )
 
+    print(summary(model, torch.zeros([1] + list(data_shape)), show_input=True, show_hierarchical=True))
+    
+    model = model.to(device)
     # alternatively one can define a model directly as follows
     # ```
     # model = ResNet18(num_classes=num_classes, variant=args.dataset_name).to(device)
@@ -309,8 +251,7 @@ if __name__ == "__main__":
             model
         )  # more efficient version of DataParallel
 
-    model = model.to(device)
-
+    
     ######################################################################################################### Optimisation
 
     params = model.parameters()
@@ -345,7 +286,13 @@ if __name__ == "__main__":
 
     start_epoch = 0
     if args.resume:
-        resume_epoch = restore_model(restore_fields, path=saved_models_filepath)
+        resume_epoch = restore_model(
+            restore_fields,
+            filename=args.experiment_name,
+            directory=saved_models_filepath,
+            epoch_idx=None,
+        )
+
         if resume_epoch == -1:
             raise IOError(
                 f"Failed to load from {saved_models_filepath}/ckpt.pth.tar, which probably means that the "
@@ -370,60 +317,23 @@ if __name__ == "__main__":
         for tracker_name in ["training", "validation", "testing"]
     )
 
-    epoch_progress = Progress(
-        "{task.description}",
-        SpinnerColumn(),
-        BarColumn(),
-        TextColumn("{task.percentage:>3.0f}%"),
-        metric_tracker_train.get_metric_text_column(),
-    )
-
-    train_progress_dict = {
-        **dict(description="[green]Training", total=len(train_set_loader)),
-        **metric_tracker_train.get_current_iteration_metric_text_column_fields(),
-    }
-
-    val_progress_dict = {
-        **dict(description="[yellow]Validation", total=len(val_set_loader)),
-        **metric_tracker_val.get_current_iteration_metric_text_column_fields(),
-    }
-
-    train_epoch_progress = epoch_progress.add_task(**train_progress_dict)
-    val_epoch_progress = epoch_progress.add_task(**val_progress_dict)
-
-    for task in epoch_progress.tasks:
-        print(task)
-
-    overall_progress = Progress()
-
-    total_iters = (args.max_epochs - 1 - start_epoch) * (
-        len(train_set_loader) + len(val_set_loader)
-    ) + len(test_set_loader) * args.test
-
-    overall_task = overall_progress.add_task(
-        "Experiment Progress",
-        completed=(start_epoch + 1) * (len(train_set_loader) + len(val_set_loader)),
-        total=total_iters,
-    )
-
-    progress_table = Table.grid()
-    progress_table.add_row(
-        Panel.fit(
-            overall_progress,
-            title="Experiment Progress",
-            border_style="green",
-            padding=(2, 2),
+    progress_reporter = PrettyProgressReporter(
+        metric_trackers=(metric_tracker_train, metric_tracker_val, metric_tracker_test),
+        set_size_list=(
+            len(train_set_loader),
+            len(val_set_loader),
+            len(test_set_loader),
         ),
+        max_epochs=args.max_epochs,
+        start_epoch=start_epoch,
+        test=args.test,
     )
-    progress_table.add_row(
-        Panel.fit(epoch_progress, title="[b]Jobs", border_style="red", padding=(1, 2))
-    )
-    progress_table.add_row(metric_tracker_train.per_epoch_table)
-    progress_table.add_row(metric_tracker_val.per_epoch_table)
 
     train_iterations = 0
 
-    with Live(progress_table, refresh_per_second=10) as interface_panel:
+    with Live(
+        progress_reporter.progress_table, refresh_per_second=1
+    ) as interface_panel:
         for epoch in range(start_epoch, args.max_epochs):
 
             train(
@@ -431,10 +341,7 @@ if __name__ == "__main__":
                 data_loader=train_set_loader,
                 model=model,
                 metric_tracker=metric_tracker_train,
-                progress_panel=epoch_progress,
-                progress_tracker=train_epoch_progress,
-                overall_progress=overall_progress,
-                overall_task=overall_task,
+                progress_reporter=progress_reporter,
             )
             with torch.no_grad():
                 eval(
@@ -442,10 +349,7 @@ if __name__ == "__main__":
                     data_loader=val_set_loader,
                     model=model,
                     metric_tracker=metric_tracker_val,
-                    progress_panel=epoch_progress,
-                    progress_tracker=val_epoch_progress,
-                    overall_progress=overall_progress,
-                    overall_task=overall_task,
+                    progress_reporter=progress_reporter,
                 )
 
             scheduler.step()
@@ -456,32 +360,32 @@ if __name__ == "__main__":
             metric_tracker_val.save()
 
             ################################################################################ Saving models
-            if args.save:
-                state = {
-                    "args": args,
-                    "epoch": epoch,
-                    "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "scheduler": scheduler.state_dict(),
-                }
 
-                current_epoch_filename = f"{epoch}_ckpt.pth.tar"
-                latest_epoch_filename = "latest_ckpt.pth.tar"
+            state = {
+                "args": args,
+                "epoch": epoch,
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+            }
 
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=current_epoch_filename,
-                    is_best=False,
-                )
+            metric_tracker_val.refresh_best_n_epoch_models(
+                directory=saved_models_filepath,
+                filename=args.experiment_name,
+                metric_name="accuracy",
+                n=args.save_top_n_val_models,
+                bigger_is_better=True,
+                current_epoch_idx=epoch,
+                current_epoch_state=state,
+            )
 
-                save_checkpoint(
-                    state=state,
-                    directory=saved_models_filepath,
-                    filename=latest_epoch_filename,
-                    is_best=False,
-                )
-            ############################################################################################################
+            save_checkpoint(
+                state=state,
+                directory=saved_models_filepath,
+                filename=args.experiment_name,
+                is_best=False,
+            )
+        ############################################################################################################
 
         if args.test:
             test_progress_dict = {
@@ -489,16 +393,19 @@ if __name__ == "__main__":
                 **metric_tracker_test.get_current_iteration_metric_text_column_fields(),
             }
 
-            test_epoch_progress = epoch_progress.add_task(**test_progress_dict)
+            test_epoch_progress = progress_reporter.epoch_progress.add_task(
+                **test_progress_dict
+            )
 
             if args.val_set_percentage >= 0.0:
-                best_epoch_val_model = metric_tracker_val.get_best_epoch_for_metric(
-                    evaluation_metric=np.argmax, metric_name="accuracy_mean"
-                )
+                top_n_model_idx = metric_tracker_val.get_best_n_epochs_for_metric(
+                    metric_name="accuracy", n=1, bigger_is_better=True
+                )[0]
                 resume_epoch = restore_model(
                     restore_fields,
-                    path=saved_models_filepath,
-                    epoch=best_epoch_val_model,
+                    filename=args.experiment_name,
+                    directory=saved_models_filepath,
+                    epoch_idx=top_n_model_idx,
                 )
 
             eval(
@@ -506,8 +413,7 @@ if __name__ == "__main__":
                 model=model,
                 data_loader=test_set_loader,
                 metric_tracker=metric_tracker_test,
-                progress_panel=epoch_progress,
-                progress_tracker=test_epoch_progress,
+                progress_reporter=progress_reporter,
             )
 
             metric_tracker_test.save()

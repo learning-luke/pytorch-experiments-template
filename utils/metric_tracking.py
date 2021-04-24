@@ -2,18 +2,16 @@ import os
 
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-from rich.console import Console
 from rich.progress import TextColumn
 from rich.table import Table
 import matplotlib.pyplot as plt
-
-from utils.storage import load_metrics_dict_from_pt
+import time
+from utils.storage import load_metrics_dict_from_pt, save_checkpoint
 import seaborn as sns
 
 sns.set()
+
 
 def compute_accuracy(logits, targets):
     acc = (targets == logits.argmax(-1)).float().detach().cpu().numpy()
@@ -29,20 +27,14 @@ class MetricTracker:
         path="",
     ):
         if metrics_to_track is None:
-            metrics_to_track = {
+            self.metrics_to_track = {
                 "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
                 "accuracy": compute_accuracy,
             }
         else:
             self.metrics_to_track = metrics_to_track
 
-        self.metrics_to_receive = [
-            "epochs",
-            "iter",
-            "data/s",
-            "iter/s",
-            "epoch ETA",
-        ]
+        self.metrics_to_receive = ["epochs", "iter", "iter/s"]
         self.metrics = {}
 
         self.tracker_name = tracker_name
@@ -51,6 +43,8 @@ class MetricTracker:
             self.metrics[k] = []
         for k, _ in metrics_to_track.items():
             self.metrics[k] = []
+        self.metrics["epochs_to_rank"] = dict()
+
         if load and os.path.isfile(path):
             metrics_from_file = load_metrics_dict_from_pt(path=path)
             self.metrics = metrics_from_file
@@ -62,12 +56,11 @@ class MetricTracker:
         for key in self.collect_per_epoch().keys():
             self.per_epoch_table.add_column(key)
 
-    def push(self, epoch, iteration, data, batch_time, epoch_time, logits, targets):
+    def push(self, epoch, iteration, epoch_start_time, logits, targets):
+        time_taken = time.time() - epoch_start_time
         self.metrics["epochs"].append(epoch)
         self.metrics["iter"].append(iteration)
-        self.metrics["data/s"].append(1.0 / data)
-        self.metrics["iter/s"].append(1.0 / batch_time)
-        self.metrics["epoch ETA"].append(epoch_time)
+        self.metrics["iter/s"].append((iteration + 1) / time_taken)
 
         for key, metric_function in self.metrics_to_track.items():
             self.metrics[key].append(metric_function(logits, targets))
@@ -79,29 +72,26 @@ class MetricTracker:
                 [
                     f"{key}: {{task.fields[{key}]}}"
                     for key, value in self.metrics.items()
+                    if (key in self.metrics_to_receive)
+                    or (key in self.metrics_to_track)
                 ]
             ).expandtabs(2)
         )
 
     def get_current_iteration_metric_text_column_fields(self):
-        return {
-            key: "None"
-            if len(value) == 0
-            else (f"{value[-1]:0.2f}" if isinstance(value[-1], float) else value[-1])
+        output = {
+            key: (
+                "None"
+                if len(value) == 0
+                else (
+                    f"{value[-1]:0.2f}" if isinstance(value[-1], float) else value[-1]
+                )
+            )
             for key, value in self.metrics.items()
+            if (key in self.metrics_to_receive) or (key in self.metrics_to_track)
         }
 
-    def get_current_iteration_metric_trace_string(self):
-        return "".join(
-            [
-                (
-                    "{}: {:0.4f}; ".format(key, value[-1])
-                    if isinstance(value[-1], float)
-                    else ""
-                )
-                for key, value in self.metrics.items()
-            ]
-        ).replace("(", "")
+        return output
 
     def update_per_epoch_table(
         self,
@@ -145,8 +135,71 @@ class MetricTracker:
 
         return epoch_metrics
 
-    def get_best_epoch_for_metric(self, metric_name, evaluation_metric=np.argmax):
-        return evaluation_metric(self.collect_per_epoch()[metric_name])
+    def get_best_n_epochs_for_metric(self, metric_name, n=1, bigger_is_better=True):
+        results_for_all_epochs = np.array(
+            self.collect_per_epoch()[f"{metric_name}_mean"]
+        )
+        sorted_epochs = np.argsort(results_for_all_epochs)
+
+        if bigger_is_better:
+            top_n = list(sorted_epochs[-n:])
+        else:
+            top_n = list(sorted_epochs[:n])
+
+        return top_n
+
+    def refresh_best_n_epoch_models(
+        self,
+        directory,
+        filename,
+        metric_name,
+        n,
+        bigger_is_better,
+        current_epoch_idx,
+        current_epoch_state,
+    ):
+        if len(self.metrics["epochs_to_rank"].keys()) < n:
+            self.metrics["epochs_to_rank"][current_epoch_idx] = len(
+                self.metrics["epochs_to_rank"]
+            )
+
+            save_checkpoint(
+                state=current_epoch_state,
+                is_best=True,
+                directory=directory,
+                filename=filename,
+                epoch_idx=current_epoch_idx,
+            )
+        else:
+
+            previous_top_n = list(self.metrics["epochs_to_rank"].keys())
+            current_top_n = self.get_best_n_epochs_for_metric(
+                metric_name=metric_name, n=n, bigger_is_better=bigger_is_better
+            )
+            print(current_top_n, previous_top_n)
+
+            if current_top_n != previous_top_n:
+                self.metrics["epochs_to_rank"] = dict()
+
+                for rank_idx, epoch_idx in enumerate(current_top_n):
+                    self.metrics["epochs_to_rank"][epoch_idx] = rank_idx
+
+                epoch_idx_models_to_remove = [
+                    idx for idx in previous_top_n if idx not in current_top_n
+                ]
+
+                for idx_to_remove in epoch_idx_models_to_remove:
+                    os.remove(
+                        f"{directory}/epoch_{idx_to_remove}_model_{filename}.ckpt"
+                    )
+
+                save_checkpoint(
+                    state=current_epoch_state,
+                    is_best=True,
+                    directory=directory,
+                    filename=filename,
+                    epoch_idx=current_epoch_idx,
+                )
 
     def plot(self, path, plot_std_dev=True):
         epoch_metrics = self.collect_per_epoch()
@@ -181,4 +234,3 @@ class MetricTracker:
             ax.set_xlabel("epochs")
         fig.tight_layout()
         fig.savefig(path, dpi=100)
-        
