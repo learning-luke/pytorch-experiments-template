@@ -20,7 +20,7 @@ class VisualTransformer(nn.Module):
         transformer_num_filters: int,
         transformer_num_layers: int,
         transformer_num_heads: int,
-        stem_conv_bias: bool,
+        stem_conv_bias: False,
         model_name_to_download: None,
         pretrained: False,
     ):

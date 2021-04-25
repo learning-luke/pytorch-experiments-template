@@ -65,8 +65,7 @@ def add_extra_option_args(parser):
     parser.add_argument("--model.depth", type=int, default=18)
     parser.add_argument("--model.widen_factor", type=int, default=1)
     parser.add_argument("--model.pretrained", default=False, action="store_true")
-    parser.add_argument("--model.model_name_to_download", type=str,
-                        default="ViT-B-32")
+    parser.add_argument("--model.model_name_to_download", type=str, default="ViT-B-32")
     parser.add_argument("--model.grid_patch_size", type=int, default=32)
     parser.add_argument("--model.transformer_num_filters", type=int, default=768)
     parser.add_argument("--model.transformer_num_layers", type=int, default=12)
@@ -77,7 +76,7 @@ def add_extra_option_args(parser):
         type=float,
         default=0.01,
         help="A float between 0 and 1.0 indicating the max percentage of utilization "
-             "a GPU must have in order to "
+        "a GPU must have in order to "
         "be considered "
         "as available for usage",
     )
@@ -86,7 +85,7 @@ def add_extra_option_args(parser):
         type=float,
         default=0.01,
         help="A float between 0 and 1.0 indicating the max memory percentage being "
-             "used on a GPU in order to "
+        "used on a GPU in order to "
         "be considered "
         "as available for usage",
     )
@@ -96,7 +95,6 @@ def add_extra_option_args(parser):
         default=[],
         help="A list of GPU IDs to exclude from the auto selection process",
     )
-
 
     return parser
 

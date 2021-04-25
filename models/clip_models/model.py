@@ -9,11 +9,21 @@ import torch.nn.functional as F
 from torch import nn
 import requests
 
+from models import VisualTransformer
+
 model_to_download_url_dict = {
-    "RN50": "https://openaipublic.azureedge.net/clip/models/afeb0e10f9e5a86da6080e35cf09123aca3b358a0c3e3b6c78a7b63bc04b6762/RN50.pt",
-    "RN101": "https://openaipublic.azureedge.net/clip/models/8fa8567bab74a42d41c5915025a8e4538c3bdbe8804a470a72f30b0d94fab599/RN101.pt",
-    "RN50x4": "https://openaipublic.azureedge.net/clip/models/7e526bd135e493cef0776de27d5f42653e6b4c8bf9e0f653bb11773263205fdd/RN50x4.pt",
-    "ViT-B-32": "https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt",
+    "RN50": "https://openaipublic.azureedge.net/clip/models"
+            "/afeb0e10f9e5a86da6080e35cf09123aca3b358a0c3e3b6c78a7b63bc04b6762/RN50"
+            ".pt", 
+    "RN101": "https://openaipublic.azureedge.net/clip/models"
+             "/8fa8567bab74a42d41c5915025a8e4538c3bdbe8804a470a72f30b0d94fab599/RN101"
+             ".pt", 
+    "RN50x4": "https://openaipublic.azureedge.net/clip/models"
+              "/7e526bd135e493cef0776de27d5f42653e6b4c8bf9e0f653bb11773263205fdd"
+              "/RN50x4.pt", 
+    "ViT-B-32": "https://openaipublic.azureedge.net/clip/models"
+                "/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af"
+                "/ViT-B-32.pt", 
 }
 
 
@@ -23,7 +33,8 @@ class Bottleneck(nn.Module):
     def __init__(self, inplanes, planes, stride=1):
         super().__init__()
 
-        # all conv layers have stride 1. an avgpool is performed after the second convolution when stride > 1
+        # all conv layers have stride 1. an avgpool is performed after the second 
+        # convolution when stride > 1 
         self.conv1 = nn.Conv2d(inplanes, planes, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
 
@@ -40,7 +51,8 @@ class Bottleneck(nn.Module):
         self.stride = stride
 
         if stride > 1 or inplanes != planes * Bottleneck.expansion:
-            # downsampling layer is prepended with an avgpool, and the subsequent convolution has stride 1
+            # downsampling layer is prepended with an avgpool, and the subsequent 
+            # convolution has stride 1 
             self.downsample = nn.Sequential(
                 OrderedDict(
                     [
@@ -125,10 +137,11 @@ class AttentionPool2d(nn.Module):
 
 class ModifiedResNet(nn.Module):
     """
-    A ResNet class that is similar to torchvision's but contains the following changes:
-    - There are now 3 "stem" convolutions as opposed to 1, with an average pool instead of a max pool.
-    - Performs anti-aliasing strided convolutions, where an avgpool is prepended to convolutions with stride > 1
-    - The final pooling layer is a QKV attention instead of an average pool
+    A ResNet class that is similar to torchvision's but contains the following 
+    changes: - There are now 3 "stem" convolutions as opposed to 1, with an average 
+    pool instead of a max pool. - Performs anti-aliasing strided convolutions, 
+    where an avgpool is prepended to convolutions with stride > 1 - The final pooling 
+    layer is a QKV attention instead of an average pool 
     """
 
     def __init__(self, layers, output_dim, heads, input_resolution=224, width=64):
@@ -286,12 +299,13 @@ class CLIP(nn.Module):
         else:
             vision_heads = vision_width // 64
             self.visual = VisualTransformer(
-                input_resolution=image_resolution,
-                patch_size=vision_patch_size,
-                width=vision_width,
-                layers=vision_layers,
-                heads=vision_heads,
-                output_dim=embed_dim,
+                grid_patch_size=vision_patch_size,
+                transformer_num_filters=vision_width,
+                transformer_num_layers=vision_layers,
+                transformer_num_heads=vision_heads,
+                stem_conv_bias=False,
+                model_name_to_download=None,
+                pretrained=False
             )
 
         self.transformer = Transformer(
@@ -350,8 +364,8 @@ class CLIP(nn.Module):
             nn.init.normal_(self.text_projection, std=self.transformer.width ** -0.5)
 
     def build_attention_mask(self):
-        # lazily create causal attention mask, with full attention between the vision tokens
-        # pytorch uses additive attention mask; fill with -inf
+        # lazily create causal attention mask, with full attention between the vision
+        # tokens pytorch uses additive attention mask; fill with -inf
         mask = torch.empty(self.context_length, self.context_length)
         mask.fill_(float("-inf"))
         mask.triu_(1)  # zero out the lower diagonal
@@ -373,8 +387,8 @@ class CLIP(nn.Module):
         x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x).type(self.dtype)
 
-        # x.shape = [batch_size, n_ctx, transformer.width]
-        # take features from the eot embedding (eot_token is the highest number in each sequence)
+        # x.shape = [batch_size, n_ctx, transformer.width] take features from the eot
+        # embedding (eot_token is the highest number in each sequence)
         x = x[torch.arange(x.shape[0]), text.argmax(dim=-1)] @ self.text_projection
 
         return x
@@ -433,10 +447,12 @@ def build_model(state_dict: dict):
         vision_layers = len(
             [
                 k
-                for k in state_dict.keys()
-                if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")
+                for k in state_dict
+                if k.startswith("visual.")
+                and k.endswith(".attn.in_proj_weight")
             ]
         )
+
         vision_patch_size = state_dict["visual.conv1.weight"].shape[-1]
         grid_size = round(
             (state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5
@@ -445,14 +461,15 @@ def build_model(state_dict: dict):
     else:
         counts: list = [
             len(
-                set(
+                {
                     k.split(".")[2]
                     for k in state_dict
                     if k.startswith(f"visual.layer{b}")
-                )
+                }
             )
             for b in [1, 2, 3, 4]
         ]
+
         vision_layers = tuple(counts)
         vision_width = state_dict["visual.layer1.0.conv1.weight"].shape[0]
         output_width = round(
@@ -470,13 +487,8 @@ def build_model(state_dict: dict):
     vocab_size = state_dict["token_embedding.weight"].shape[0]
     transformer_width = state_dict["ln_final.weight"].shape[0]
     transformer_heads = transformer_width // 64
-    transformer_layers = len(
-        set(
-            k.split(".")[2]
-            for k in state_dict
-            if k.startswith(f"transformer.resblocks")
-        )
-    )
+    transformer_layers = len({k.split(".")[2] for k in state_dict
+                if k.startswith(f"transformer.resblocks")})
 
     model = CLIP(
         embed_dim,
