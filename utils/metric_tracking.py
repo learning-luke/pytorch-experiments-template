@@ -169,7 +169,7 @@ class MetricTracker:
             current_top_n = self.get_best_n_epochs_for_metric(
                 metric_name=metric_name, n=n, bigger_is_better=bigger_is_better
             )
-            print(current_top_n, previous_top_n)
+
 
             if current_top_n != previous_top_n:
                 self.metrics["epochs_to_rank"] = {}

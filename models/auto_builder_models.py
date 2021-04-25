@@ -733,7 +733,7 @@ class Unsqueeze(nn.Module):
 
 
 class EasyPeasyResNet(ClassificationModel):
-    def __init__(self, num_classes, model_name_to_download, pretrained=True):
+    def __init__(self, num_classes, model_name_to_download, pretrained=True, **kwargs):
         feature_embedding_modules = [
             ResNet,
             AvgPoolFlexibleDimension,
