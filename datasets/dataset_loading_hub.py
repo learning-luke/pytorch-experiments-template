@@ -54,6 +54,54 @@ class MNISTLoader:
         return train_set, val_set, test_set, num_labels
 
 
+class EMNISTLoader:
+    def __init__(self):
+        normalize = transforms.Normalize(mean=[0.1307], std=[0.3081])
+        self.image_shape = ImageShape(1, 28, 28)
+
+        self.transform_train = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                normalize,
+            ]
+        )
+
+        self.transform_validate = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                normalize,
+            ]
+        )
+
+    def get_data(
+        self, data_filepath, val_set_percentage, random_split_seed, download=False
+    ):
+        train_set = datasets.EMNIST(
+            root=data_filepath,
+            split="balanced",
+            train=True,
+            download=download,
+            transform=self.transform_train,
+        )
+        num_training_items = int(len(train_set) * (1.0 - val_set_percentage))
+        num_val_items = len(train_set) - num_training_items
+
+        train_set, val_set = torch.utils.data.random_split(
+            train_set,
+            [num_training_items, num_val_items],
+            generator=torch.Generator().manual_seed(random_split_seed),
+        )
+
+        test_set = datasets.EMNIST(
+            root=data_filepath,
+            split="balanced",
+            train=False,
+            transform=self.transform_validate,
+        )
+        num_labels = 47
+        return train_set, val_set, test_set, num_labels
+
+
 class CINIC10Loader:
     def __init__(self):
         normalize = transforms.Normalize(
@@ -265,6 +313,7 @@ def load_dataset(
 
     datasets = {
         "mnist": MNISTLoader,
+        "emnist": EMNISTLoader,
         "cinic10": CINIC10Loader,
         "cifar10": CIFAR10Loader,
         "cifar100": CIFAR100Loader,
