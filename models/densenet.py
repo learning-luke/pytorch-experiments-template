@@ -84,7 +84,7 @@ class DenseNet(nn.Module):
 
     def _make_dense_layers(self, block, in_planes, nblock):
         layers = []
-        for i in range(nblock):
+        for _ in range(nblock):
             self.num_blocks += 1
             layers.append(block(in_planes, self.growth_rate))
             in_planes += self.growth_rate

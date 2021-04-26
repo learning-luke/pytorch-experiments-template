@@ -234,9 +234,7 @@ if __name__ == "__main__":
 
     # ############################################################################ Model
     args.model.num_classes = num_classes
-    model = model_zoo[args.model.type](
-        **args.model
-    )
+    model = model_zoo[args.model.type](**args.model)
 
     print(
         summary(

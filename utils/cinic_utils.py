@@ -29,12 +29,12 @@ def download_url(url, root, filename):
             if url[:5] == "https":
                 url = url.replace("https:", "http:")
                 return _extracted_from_download_url_21(
-                    "Failed download. Trying https -> http instead."
-                    " Downloading ",
+                    "Failed download. Trying https -> http instead." " Downloading ",
                     url,
                     fpath,
                     urllib,
                 )
+
 
 def _extracted_from_download_url_21(arg0, url, fpath, urllib):
     print(arg0 + url + " to " + fpath)
@@ -56,6 +56,7 @@ def download_cinic(root):
     # extract file
     if downloaded == 0:
         _extracted_from_download_cinic_14(tarfile, root, filename)
+
 
 def _extracted_from_download_cinic_14(tarfile, root, filename):
     cwd = os.getcwd()

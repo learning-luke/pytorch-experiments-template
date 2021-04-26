@@ -6,7 +6,10 @@ from models.auto_builder_models import (
 
 import torch
 
-from models.auto_builder_transformers import EasyPeasyViTFlatten, EasyPeasyViTLastTimeStep
+from models.auto_builder_transformers import (
+    EasyPeasyViTFlatten,
+    EasyPeasyViTLastTimeStep,
+)
 
 RUN_CUDA_TESTS = False
 
@@ -86,6 +89,7 @@ def test_EasyPeasyResNet_layer_output_shape():
     assert out.shape[1] == 10
     assert len(out.shape) == 2
 
+
 def test_EasyPeasyViTFlatten_layer_output_shape():
     model = EasyPeasyViTFlatten(
         grid_patch_size=32,
@@ -94,7 +98,7 @@ def test_EasyPeasyViTFlatten_layer_output_shape():
         transformer_num_heads=8,
         model_name_to_download=None,
         pretrained=False,
-        num_classes=10
+        num_classes=10,
     )
     dummy_x = torch.zeros((8, 3, 128, 128))
     model, dummy_x = apply_to_test_device(model, dummy_x)
@@ -102,6 +106,7 @@ def test_EasyPeasyViTFlatten_layer_output_shape():
 
     assert len(out.shape) == 2
     assert out.shape[1] == 10
+
 
 def test_EasyPeasyViTLastTimeStep_layer_output_shape():
     model = EasyPeasyViTLastTimeStep(
@@ -111,7 +116,7 @@ def test_EasyPeasyViTLastTimeStep_layer_output_shape():
         transformer_num_heads=8,
         model_name_to_download=None,
         pretrained=False,
-        num_classes=10
+        num_classes=10,
     )
     dummy_x = torch.zeros((8, 3, 128, 128))
     model, dummy_x = apply_to_test_device(model, dummy_x)
@@ -120,15 +125,16 @@ def test_EasyPeasyViTLastTimeStep_layer_output_shape():
     assert len(out.shape) == 2
     assert out.shape[1] == 10
 
+
 def test_EasyPeasyViTFlattenPretrained_layer_output_shape():
     model = EasyPeasyViTFlatten(
         grid_patch_size=32,
         transformer_num_filters=768,
         transformer_num_layers=12,
         transformer_num_heads=12,
-        model_name_to_download='ViT-B-32',
+        model_name_to_download="ViT-B-32",
         pretrained=True,
-        num_classes=10
+        num_classes=10,
     )
     dummy_x = torch.zeros((8, 3, 224, 224))
     model, dummy_x = apply_to_test_device(model, dummy_x)
@@ -137,15 +143,16 @@ def test_EasyPeasyViTFlattenPretrained_layer_output_shape():
     assert len(out.shape) == 2
     assert out.shape[1] == 10
 
+
 def test_EasyPeasyViTLastTimeStepPretrained_layer_output_shape():
     model = EasyPeasyViTFlatten(
         grid_patch_size=32,
         transformer_num_filters=768,
         transformer_num_layers=12,
         transformer_num_heads=12,
-        model_name_to_download='ViT-B-32',
+        model_name_to_download="ViT-B-32",
         pretrained=True,
-        num_classes=10
+        num_classes=10,
     )
     dummy_x = torch.zeros((8, 3, 224, 224))
     model, dummy_x = apply_to_test_device(model, dummy_x)
