@@ -16,6 +16,7 @@ from utils.pretty_progress_reporting import PrettyProgressReporter
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
 from pytorch_model_summary import summary
 
+
 def get_base_argument_parser():
     parser = argparse.ArgumentParser()
     # data and I/O
@@ -238,8 +239,15 @@ if __name__ == "__main__":
         num_classes=num_classes, in_channels=data_shape.channels
     )
 
-    print(summary(model, torch.zeros([1] + list(data_shape)), show_input=True, show_hierarchical=True))
-    
+    print(
+        summary(
+            model,
+            torch.zeros([1] + list(data_shape)),
+            show_input=True,
+            show_hierarchical=True,
+        )
+    )
+
     model = model.to(device)
     # alternatively one can define a model directly as follows
     # ```
@@ -247,11 +255,8 @@ if __name__ == "__main__":
     # ```
 
     if args.num_gpus_to_use > 1:
-        model = nn.parallel.DistributedDataParallel(
-            model
-        )  # more efficient version of DataParallel
+        model = nn.parallel.DataParallel(model)
 
-    
     ######################################################################################################### Optimisation
 
     params = model.parameters()
@@ -279,7 +284,7 @@ if __name__ == "__main__":
     ######################################################################################################### Restoring
 
     restore_fields = {
-        "model": model,
+        "model": model if not isinstance(model, nn.DataParallel) else model.module,
         "optimizer": optimizer,
         "scheduler": scheduler,
     }
@@ -364,7 +369,9 @@ if __name__ == "__main__":
             state = {
                 "args": args,
                 "epoch": epoch,
-                "model": model.state_dict(),
+                "model": model.state_dict()
+                if not isinstance(model, nn.DataParallel)
+                else model.module.state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "scheduler": scheduler.state_dict(),
             }

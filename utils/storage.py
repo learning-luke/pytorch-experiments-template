@@ -5,7 +5,6 @@ import numpy as np
 import scipy.misc
 import shutil
 import torch
-from collections import OrderedDict
 import scipy
 import json
 import os
@@ -136,17 +135,8 @@ def restore_model(restore_fields, directory, filename, epoch_idx=None, device="c
         )
 
         for name, field in restore_fields.items():
-            new_state_dict = OrderedDict()
-            for k, v in checkpoint[name].items():
-                if "module" in k and (
-                    device == "cpu" or torch.cuda.device_count() == 1
-                ):
-                    name = k.replace("module.", "")  # remove module.
-                else:
-                    name = k
-                new_state_dict[name] = v
+            field.load_state_dict(checkpoint[name])
 
-            field.load_state_dict(new_state_dict)
         return checkpoint["epoch"]
     else:
         return -1
