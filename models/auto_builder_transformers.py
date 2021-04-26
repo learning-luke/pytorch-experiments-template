@@ -11,6 +11,9 @@ from rich import print
 from models.auto_builder_models import ClassificationModel
 from models.clip_models.model import Transformer, LayerNorm, model_to_download_url_dict
 from utils.storage import download_file
+import torch.nn.functional as F
+import torch
+import torch.nn as nn
 
 
 class VisualTransformer(nn.Module):
@@ -37,6 +40,9 @@ class VisualTransformer(nn.Module):
     def build(self, input_shape):
         dummy_x = torch.zeros(input_shape)
         out = dummy_x
+
+        if self.pretrained and out.shape[2] != 224:
+            out = F.interpolate(out, size=(224, 224))
 
         self.conv1 = nn.Conv2d(
             in_channels=out.shape[1],
@@ -124,6 +130,14 @@ class VisualTransformer(nn.Module):
             print(model_weights_filepath)
             target_url = model_to_download_url_dict[self.model_name_to_download]
             download_file(url=target_url, filename=model_weights_filepath, verbose=True)
+        test_dict = {
+                key: value
+                for key, value in torch.load(
+                    model_weights_filepath
+                ).visual.named_parameters()
+            }
+        for key, value in test_dict.items():
+            print(key, value.shape)
         named_parameters = OrderedDict(
             {
                 key: value
@@ -135,6 +149,11 @@ class VisualTransformer(nn.Module):
         self.load_state_dict(state_dict=named_parameters, strict=False)
 
     def forward(self, x: torch.Tensor):
+
+        if self.pretrained and x.shape[2] != 224:
+            x = F.interpolate(x, size=(224, 224))
+
+
         if not self.is_built:
             self.build(input_shape=x.shape)
 
@@ -181,7 +200,7 @@ class EasyPeasyViTFlatten(ClassificationModel):
         model_name_to_download: str,
         stem_conv_bias=False,
         pretrained=True,
-        **kwargs
+        **kwargs,
     ):
         feature_embedding_modules = [VisualTransformer]
         feature_embeddings_args = [
@@ -222,7 +241,7 @@ class EasyPeasyViTLastTimeStep(ClassificationModel):
         model_name_to_download: str,
         stem_conv_bias=False,
         pretrained=True,
-        **kwargs
+        **kwargs,
     ):
         feature_embedding_modules = [
             VisualTransformer,

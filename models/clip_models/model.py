@@ -9,21 +9,20 @@ import torch.nn.functional as F
 from torch import nn
 import requests
 
-from models import VisualTransformer
 
 model_to_download_url_dict = {
     "RN50": "https://openaipublic.azureedge.net/clip/models"
-            "/afeb0e10f9e5a86da6080e35cf09123aca3b358a0c3e3b6c78a7b63bc04b6762/RN50"
-            ".pt", 
+    "/afeb0e10f9e5a86da6080e35cf09123aca3b358a0c3e3b6c78a7b63bc04b6762/RN50"
+    ".pt",
     "RN101": "https://openaipublic.azureedge.net/clip/models"
-             "/8fa8567bab74a42d41c5915025a8e4538c3bdbe8804a470a72f30b0d94fab599/RN101"
-             ".pt", 
+    "/8fa8567bab74a42d41c5915025a8e4538c3bdbe8804a470a72f30b0d94fab599/RN101"
+    ".pt",
     "RN50x4": "https://openaipublic.azureedge.net/clip/models"
-              "/7e526bd135e493cef0776de27d5f42653e6b4c8bf9e0f653bb11773263205fdd"
-              "/RN50x4.pt", 
+    "/7e526bd135e493cef0776de27d5f42653e6b4c8bf9e0f653bb11773263205fdd"
+    "/RN50x4.pt",
     "ViT-B-32": "https://openaipublic.azureedge.net/clip/models"
-                "/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af"
-                "/ViT-B-32.pt", 
+    "/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af"
+    "/ViT-B-32.pt",
 }
 
 
@@ -33,8 +32,8 @@ class Bottleneck(nn.Module):
     def __init__(self, inplanes, planes, stride=1):
         super().__init__()
 
-        # all conv layers have stride 1. an avgpool is performed after the second 
-        # convolution when stride > 1 
+        # all conv layers have stride 1. an avgpool is performed after the second
+        # convolution when stride > 1
         self.conv1 = nn.Conv2d(inplanes, planes, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
 
@@ -51,8 +50,8 @@ class Bottleneck(nn.Module):
         self.stride = stride
 
         if stride > 1 or inplanes != planes * Bottleneck.expansion:
-            # downsampling layer is prepended with an avgpool, and the subsequent 
-            # convolution has stride 1 
+            # downsampling layer is prepended with an avgpool, and the subsequent
+            # convolution has stride 1
             self.downsample = nn.Sequential(
                 OrderedDict(
                     [
@@ -137,11 +136,11 @@ class AttentionPool2d(nn.Module):
 
 class ModifiedResNet(nn.Module):
     """
-    A ResNet class that is similar to torchvision's but contains the following 
-    changes: - There are now 3 "stem" convolutions as opposed to 1, with an average 
-    pool instead of a max pool. - Performs anti-aliasing strided convolutions, 
-    where an avgpool is prepended to convolutions with stride > 1 - The final pooling 
-    layer is a QKV attention instead of an average pool 
+    A ResNet class that is similar to torchvision's but contains the following
+    changes: - There are now 3 "stem" convolutions as opposed to 1, with an average
+    pool instead of a max pool. - Performs anti-aliasing strided convolutions,
+    where an avgpool is prepended to convolutions with stride > 1 - The final pooling
+    layer is a QKV attention instead of an average pool
     """
 
     def __init__(self, layers, output_dim, heads, input_resolution=224, width=64):
@@ -267,149 +266,6 @@ class Transformer(nn.Module):
         return self.resblocks(x)
 
 
-class CLIP(nn.Module):
-    def __init__(
-        self,
-        embed_dim: int,
-        # vision
-        image_resolution: int,
-        vision_layers: Union[Tuple[int, int, int, int], int],
-        vision_width: int,
-        vision_patch_size: int,
-        # text
-        context_length: int,
-        vocab_size: int,
-        transformer_width: int,
-        transformer_heads: int,
-        transformer_layers: int,
-    ):
-        super().__init__()
-
-        self.context_length = context_length
-
-        if isinstance(vision_layers, (tuple, list)):
-            vision_heads = vision_width * 32 // 64
-            self.visual = ModifiedResNet(
-                layers=vision_layers,
-                output_dim=embed_dim,
-                heads=vision_heads,
-                input_resolution=image_resolution,
-                width=vision_width,
-            )
-        else:
-            vision_heads = vision_width // 64
-            self.visual = VisualTransformer(
-                grid_patch_size=vision_patch_size,
-                transformer_num_filters=vision_width,
-                transformer_num_layers=vision_layers,
-                transformer_num_heads=vision_heads,
-                stem_conv_bias=False,
-                model_name_to_download=None,
-                pretrained=False
-            )
-
-        self.transformer = Transformer(
-            width=transformer_width,
-            layers=transformer_layers,
-            heads=transformer_heads,
-            attn_mask=self.build_attention_mask(),
-        )
-
-        self.vocab_size = vocab_size
-        self.token_embedding = nn.Embedding(vocab_size, transformer_width)
-        self.positional_embedding = nn.Parameter(
-            torch.empty(self.context_length, transformer_width)
-        )
-        self.ln_final = LayerNorm(transformer_width)
-
-        self.text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
-        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
-
-        self.initialize_parameters()
-
-    def initialize_parameters(self):
-        nn.init.normal_(self.token_embedding.weight, std=0.02)
-        nn.init.normal_(self.positional_embedding, std=0.01)
-
-        if isinstance(self.visual, ModifiedResNet):
-            if self.visual.attnpool is not None:
-                std = self.visual.attnpool.c_proj.in_features ** -0.5
-                nn.init.normal_(self.visual.attnpool.q_proj.weight, std=std)
-                nn.init.normal_(self.visual.attnpool.k_proj.weight, std=std)
-                nn.init.normal_(self.visual.attnpool.v_proj.weight, std=std)
-                nn.init.normal_(self.visual.attnpool.c_proj.weight, std=std)
-
-            for resnet_block in [
-                self.visual.layer1,
-                self.visual.layer2,
-                self.visual.layer3,
-                self.visual.layer4,
-            ]:
-                for name, param in resnet_block.named_parameters():
-                    if name.endswith("bn3.weight"):
-                        nn.init.zeros_(param)
-
-        proj_std = (self.transformer.width ** -0.5) * (
-            (2 * self.transformer.layers) ** -0.5
-        )
-        attn_std = self.transformer.width ** -0.5
-        fc_std = (2 * self.transformer.width) ** -0.5
-        for block in self.transformer.resblocks:
-            nn.init.normal_(block.attn.in_proj_weight, std=attn_std)
-            nn.init.normal_(block.attn.out_proj.weight, std=proj_std)
-            nn.init.normal_(block.mlp.c_fc.weight, std=fc_std)
-            nn.init.normal_(block.mlp.c_proj.weight, std=proj_std)
-
-        if self.text_projection is not None:
-            nn.init.normal_(self.text_projection, std=self.transformer.width ** -0.5)
-
-    def build_attention_mask(self):
-        # lazily create causal attention mask, with full attention between the vision
-        # tokens pytorch uses additive attention mask; fill with -inf
-        mask = torch.empty(self.context_length, self.context_length)
-        mask.fill_(float("-inf"))
-        mask.triu_(1)  # zero out the lower diagonal
-        return mask
-
-    @property
-    def dtype(self):
-        return self.visual.conv1.weight.dtype
-
-    def encode_image(self, image):
-        return self.visual(image.type(self.dtype))
-
-    def encode_text(self, text):
-        x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
-
-        x = x + self.positional_embedding.type(self.dtype)
-        x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.transformer(x)
-        x = x.permute(1, 0, 2)  # LND -> NLD
-        x = self.ln_final(x).type(self.dtype)
-
-        # x.shape = [batch_size, n_ctx, transformer.width] take features from the eot
-        # embedding (eot_token is the highest number in each sequence)
-        x = x[torch.arange(x.shape[0]), text.argmax(dim=-1)] @ self.text_projection
-
-        return x
-
-    def forward(self, image, text):
-        image_features = self.encode_image(image)
-        text_features = self.encode_text(text)
-
-        # normalized features
-        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-
-        # cosine similarity as logits
-        logit_scale = self.logit_scale.exp()
-        logits_per_image = logit_scale * image_features @ text_features.t()
-        logits_per_text = logit_scale * text_features @ image_features.t()
-
-        # shape = [global_batch_size, global_batch_size]
-        return logits_per_image, logits_per_text
-
-
 def convert_weights(model: nn.Module):
     """Convert applicable model parameters to fp16"""
 
@@ -448,8 +304,7 @@ def build_model(state_dict: dict):
             [
                 k
                 for k in state_dict
-                if k.startswith("visual.")
-                and k.endswith(".attn.in_proj_weight")
+                if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")
             ]
         )
 
@@ -487,8 +342,9 @@ def build_model(state_dict: dict):
     vocab_size = state_dict["token_embedding.weight"].shape[0]
     transformer_width = state_dict["ln_final.weight"].shape[0]
     transformer_heads = transformer_width // 64
-    transformer_layers = len({k.split(".")[2] for k in state_dict
-                if k.startswith(f"transformer.resblocks")})
+    transformer_layers = len(
+        {k.split(".")[2] for k in state_dict if k.startswith(f"transformer.resblocks")}
+    )
 
     model = CLIP(
         embed_dim,
