@@ -252,9 +252,7 @@ if __name__ == "__main__":
     # ```
 
     if args.num_gpus_to_use > 1:
-        model = nn.parallel.DistributedDataParallel(
-            model
-        )  # more efficient version of DataParallel
+        model = nn.parallel.DataParallel(model)
 
     # #################################################################################
     # Optimisation
@@ -284,7 +282,7 @@ if __name__ == "__main__":
     # ####################################################################### Restoring
 
     restore_fields = {
-        "model": model,
+        "model": model if not isinstance(model, nn.DataParallel) else model.module,
         "optimizer": optimizer,
         "scheduler": scheduler,
     }
@@ -370,7 +368,9 @@ if __name__ == "__main__":
             state = {
                 "args": args,
                 "epoch": epoch,
-                "model": model.state_dict(),
+                "model": model.state_dict()
+                if not isinstance(model, nn.DataParallel)
+                else model.module.state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "scheduler": scheduler.state_dict(),
             }
