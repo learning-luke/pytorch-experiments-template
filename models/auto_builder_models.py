@@ -100,7 +100,8 @@ class ResNet(nn.Module):
     __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
            'wide_resnet50_2', 'wide_resnet101_2']
-    https://github.com/pytorch/vision/blob/331f126855a106d29e1de23f8bbc3cde66c603e5/torchvision/models/resnet.py#L144
+    https://github.com/pytorch/vision/blob/331f126855a106d29e1de23f8bbc3cde66c603e5/
+    torchvision/models/resnet.py#L144
     https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
     model_ft.fc = nn.Linear(num_ftrs, num_classes)
 
@@ -289,7 +290,8 @@ class BatchRelationalModule(nn.Module):
             )
             out = F.leaky_relu(
                 self.block_dict["g_fcc_{}".format(idx_layer)].forward(out)
-            )  # g_fcc_0= ((c+1)*2, self.num_filters), g_fcc_1 = (self.num_filters, self.num_filters), g_fcc_2 = (self.num_filters, self.num_filters)
+            )  # g_fcc_0= ((c+1)*2, self.num_filters), g_fcc_1 = (self.num_filters,
+            # self.num_filters), g_fcc_2 = (self.num_filters, self.num_filters)
 
         # reshape again and sum
         # print(out.shape)
@@ -733,7 +735,7 @@ class Unsqueeze(nn.Module):
 
 
 class EasyPeasyResNet(ClassificationModel):
-    def __init__(self, num_classes, model_name_to_download, pretrained=True):
+    def __init__(self, num_classes, model_name_to_download, pretrained=True, **kwargs):
         feature_embedding_modules = [
             ResNet,
             AvgPoolFlexibleDimension,

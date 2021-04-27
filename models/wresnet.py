@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ["WideResNet","WideResNet_16_8","WideResNet_28_10","WideResNet_40_2"]
+__all__ = ["WideResNet", "WideResNet_16_8", "WideResNet_28_10", "WideResNet_40_2"]
 
 
 class BasicBlock(nn.Module):
@@ -57,16 +57,12 @@ class NetworkBlock(nn.Module):
         )
 
     def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate):
-        layers = []
-        for i in range(int(nb_layers)):
-            layers.append(
-                block(
+        layers = [block(
                     i == 0 and in_planes or out_planes,
                     out_planes,
                     i == 0 and stride or 1,
                     dropRate,
-                )
-            )
+                ) for i in range(int(nb_layers))]
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -74,7 +70,9 @@ class NetworkBlock(nn.Module):
 
 
 class WideResNet(nn.Module):
-    def __init__(self, depth, num_classes=10, widen_factor=1, dropRate=0.0):
+    def __init__(
+        self, depth, num_classes=10, widen_factor=1, dropRate=0.0, in_channels=3
+    ):
         super(WideResNet, self).__init__()
         nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
         assert (depth - 4) % 6 == 0
@@ -82,7 +80,7 @@ class WideResNet(nn.Module):
         block = BasicBlock
         # 1st conv before any network block
         self.conv1 = nn.Conv2d(
-            3, nChannels[0], kernel_size=3, stride=1, padding=1, bias=False
+            in_channels, nChannels[0], kernel_size=3, stride=1, padding=1, bias=False
         )
         # 1st block
         self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate)
@@ -116,7 +114,7 @@ class WideResNet(nn.Module):
         pool = pool.view(-1, self.nChannels)
         logits = self.fc(pool)
         return logits, (conv1, block1, block2, block3, pool)
-      
+
 
 def WideResNet_16_8(num_classes=10, variant="cifar10", **kwargs):
     return WideResNet(depth=16, num_classes=num_classes, widen_factor=8, **kwargs)
@@ -128,4 +126,3 @@ def WideResNet_28_10(num_classes=10, variant="cifar10", **kwargs):
 
 def WideResNet_40_2(num_classes=10, variant="cifar10", **kwargs):
     return WideResNet(depth=40, num_classes=num_classes, widen_factor=2, **kwargs)
-
