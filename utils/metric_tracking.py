@@ -41,9 +41,9 @@ class MetricTracker:
         self.path = path
         for k in self.metrics_to_receive:
             self.metrics[k] = []
-        for k, _ in metrics_to_track.items():
+        for k, _ in self.metrics_to_track.items():
             self.metrics[k] = []
-        self.metrics["epochs_to_rank"] = dict()
+        self.metrics["epochs_to_rank"] = {}
 
         if load and os.path.isfile(path):
             metrics_from_file = load_metrics_dict_from_pt(path=path)
@@ -69,17 +69,14 @@ class MetricTracker:
 
         return TextColumn(
             "\t".join(
-                [
-                    f"{key}: {{task.fields[{key}]}}"
-                    for key, value in self.metrics.items()
-                    if (key in self.metrics_to_receive)
-                    or (key in self.metrics_to_track)
-                ]
+                f"{key}: {{task.fields[{key}]}}"
+                for key, value in self.metrics.items()
+                if (key in self.metrics_to_receive) or (key in self.metrics_to_track)
             ).expandtabs(2)
         )
 
     def get_current_iteration_metric_text_column_fields(self):
-        output = {
+        return {
             key: (
                 "None"
                 if len(value) == 0
@@ -90,8 +87,6 @@ class MetricTracker:
             for key, value in self.metrics.items()
             if (key in self.metrics_to_receive) or (key in self.metrics_to_track)
         }
-
-        return output
 
     def update_per_epoch_table(
         self,
@@ -106,9 +101,8 @@ class MetricTracker:
         if not self.path.endswith(".pt"):
             self.path = f"{self.path}.pt"
 
-        if overwrite:
-            if os.path.exists(self.path):
-                os.remove(self.path)
+        if overwrite and os.path.exists(self.path):
+            os.remove(self.path)
 
         torch.save(self.metrics, self.path)
 
@@ -125,7 +119,7 @@ class MetricTracker:
         for k, v in self.metrics.items():
             if k in self.metrics_to_track:
                 v = np.array(v)
-                if k != "iterations" and k != "epochs":
+                if k not in ["iterations", "epochs"]:
                     for this_epoch in unique_epochs:
                         where_metrics = epochs == this_epoch
                         v_mean = np.mean(v[where_metrics])
@@ -142,11 +136,9 @@ class MetricTracker:
         sorted_epochs = np.argsort(results_for_all_epochs)
 
         if bigger_is_better:
-            top_n = list(sorted_epochs[-n:])
+            return list(sorted_epochs[-n:])
         else:
-            top_n = list(sorted_epochs[:n])
-
-        return top_n
+            return list(sorted_epochs[:n])
 
     def refresh_best_n_epoch_models(
         self,
@@ -176,10 +168,9 @@ class MetricTracker:
             current_top_n = self.get_best_n_epochs_for_metric(
                 metric_name=metric_name, n=n, bigger_is_better=bigger_is_better
             )
-            print(current_top_n, previous_top_n)
 
             if current_top_n != previous_top_n:
-                self.metrics["epochs_to_rank"] = dict()
+                self.metrics["epochs_to_rank"] = {}
 
                 for rank_idx, epoch_idx in enumerate(current_top_n):
                     self.metrics["epochs_to_rank"][epoch_idx] = rank_idx
