@@ -15,9 +15,7 @@ def download_url(url, root, filename):
     try:
         os.makedirs(root)
     except OSError as e:
-        if e.errno == errno.EEXIST:
-            pass
-        else:
+        if e.errno != errno.EEXIST:
             raise
 
     # downloads file
@@ -26,18 +24,22 @@ def download_url(url, root, filename):
         return 1
     else:
         try:
-            print("Downloading " + url + " to " + fpath)
-            urllib.request.urlretrieve(url, fpath)
-            return 0
+            return _extracted_from_download_url_21("Downloading ", url, fpath, urllib)
         except:
             if url[:5] == "https":
                 url = url.replace("https:", "http:")
-                print(
-                    "Failed download. Trying https -> http instead."
-                    " Downloading " + url + " to " + fpath
+                return _extracted_from_download_url_21(
+                    "Failed download. Trying https -> http instead." " Downloading ",
+                    url,
+                    fpath,
+                    urllib,
                 )
-                urllib.request.urlretrieve(url, fpath)
-                return 0
+
+
+def _extracted_from_download_url_21(arg0, url, fpath, urllib):
+    print(arg0 + url + " to " + fpath)
+    urllib.request.urlretrieve(url, fpath)
+    return 0
 
 
 def download_cinic(root):
@@ -53,15 +55,19 @@ def download_cinic(root):
 
     # extract file
     if downloaded == 0:
-        cwd = os.getcwd()
-        tar = tarfile.open(os.path.join(root, filename), "r:gz")
-        os.chdir(root)
-        tar.extractall()
-        tar.close()
-        os.chdir(cwd)
+        _extracted_from_download_cinic_14(tarfile, root, filename)
 
 
-def enlarge_cinic_10(cinic_dir="../data/Cinic-10", symlink=True):
+def _extracted_from_download_cinic_14(tarfile, root, filename):
+    cwd = os.getcwd()
+    tar = tarfile.open(os.path.join(root, filename), "r:gz")
+    os.chdir(root)
+    tar.extractall()
+    tar.close()
+    os.chdir(cwd)
+
+
+def extend_cinic_10(cinic_dir="../data/Cinic-10", symlink=True):
     """
     Create enlarged cinic-10 from train and validation sets
     :param cinic_dir: Where to find cinic-10
@@ -104,7 +110,7 @@ def enlarge_cinic_10(cinic_dir="../data/Cinic-10", symlink=True):
             filenames = glob.glob("{}/*.png".format(source_directory))
             for fn in filenames:
                 dest_fn = fn.split("/")[-1]
-                if s == "train" or s == "valid":
+                if s in ["train", "valid"]:
                     dest_fn = "{}/train/{}/{}".format(enlarge_directory, c, dest_fn)
                     if symlink:
                         if not os.path.islink(dest_fn):

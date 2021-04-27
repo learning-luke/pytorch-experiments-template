@@ -57,16 +57,12 @@ class NetworkBlock(nn.Module):
         )
 
     def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate):
-        layers = []
-        for i in range(int(nb_layers)):
-            layers.append(
-                block(
+        layers = [block(
                     i == 0 and in_planes or out_planes,
                     out_planes,
                     i == 0 and stride or 1,
                     dropRate,
-                )
-            )
+                ) for i in range(int(nb_layers))]
         return nn.Sequential(*layers)
 
     def forward(self, x):

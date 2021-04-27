@@ -117,13 +117,16 @@ def test_cinic10():
     resnet18 = models.resnet18(num_classes=num_classes)
 
     with torch.no_grad():
-        train_x, train_y = next(iter(train_loader))
-        val_x, val_y = next(iter(val_loader))
+        _extracted_from_test_cinic10_20(train_loader, val_loader, resnet18)
 
-        y = resnet18(train_x)
-        assert y.size()[0] == train_y.size()[0]
+def _extracted_from_test_cinic10_20(train_loader, val_loader, resnet18):
+    train_x, train_y = next(iter(train_loader))
+    val_x, val_y = next(iter(val_loader))
 
-        resnet18.eval()
+    y = resnet18(train_x)
+    assert y.size()[0] == train_y.size()[0]
 
-        y = resnet18(val_x)
-        assert y.size()[0] == val_y.size()[0]
+    resnet18.eval()
+
+    y = resnet18(val_x)
+    assert y.size()[0] == val_y.size()[0]

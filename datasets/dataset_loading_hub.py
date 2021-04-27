@@ -7,7 +7,7 @@ from collections import namedtuple
 from torch.utils.data import Subset
 
 from datasets.custom_transforms import SimCLRTransform
-from utils.cinic_utils import enlarge_cinic_10, download_cinic
+from utils.cinic_utils import extend_cinic_10, download_cinic
 from rich import print
 
 ImageShape = namedtuple("ImageShape", ["channels", "width", "height"])
@@ -54,6 +54,54 @@ class MNISTLoader:
         return train_set, val_set, test_set, num_labels
 
 
+class EMNISTLoader:
+    def __init__(self):
+        normalize = transforms.Normalize(mean=[0.1307], std=[0.3081])
+        self.image_shape = ImageShape(1, 28, 28)
+
+        self.transform_train = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                normalize,
+            ]
+        )
+
+        self.transform_validate = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                normalize,
+            ]
+        )
+
+    def get_data(
+        self, data_filepath, val_set_percentage, random_split_seed, download=False
+    ):
+        train_set = datasets.EMNIST(
+            root=data_filepath,
+            split="balanced",
+            train=True,
+            download=download,
+            transform=self.transform_train,
+        )
+        num_training_items = int(len(train_set) * (1.0 - val_set_percentage))
+        num_val_items = len(train_set) - num_training_items
+
+        train_set, val_set = torch.utils.data.random_split(
+            train_set,
+            [num_training_items, num_val_items],
+            generator=torch.Generator().manual_seed(random_split_seed),
+        )
+
+        test_set = datasets.EMNIST(
+            root=data_filepath,
+            split="balanced",
+            train=False,
+            transform=self.transform_validate,
+        )
+        num_labels = 47
+        return train_set, val_set, test_set, num_labels
+
+
 class CINIC10Loader:
     def __init__(self):
         normalize = transforms.Normalize(
@@ -84,7 +132,7 @@ class CINIC10Loader:
 
             download_cinic(data_filepath.replace("-enlarged", ""))
             if enlarge:
-                enlarge_cinic_10(data_filepath.replace("-enlarged", ""))
+                extend_cinic_10(data_filepath.replace("-enlarged", ""))
 
         train_set = datasets.ImageFolder(
             os.path.join(data_filepath, "train"), self.transform_train
@@ -265,6 +313,7 @@ def load_dataset(
 
     datasets = {
         "mnist": MNISTLoader,
+        "emnist": EMNISTLoader,
         "cinic10": CINIC10Loader,
         "cifar10": CIFAR10Loader,
         "cifar100": CIFAR100Loader,
@@ -273,7 +322,7 @@ def load_dataset(
 
     dataloader = datasets[dataset.lower()]()
 
-    ### e.g. ADD SIMCLR
+    # ## e.g. ADD SIMCLR
     # dataloader.transform_train = SimCLRTransform(size=dataloader.im_size.width)
     ###
 
@@ -336,8 +385,4 @@ def load_split_datasets(dataset, split_tuple):
         total_idx[start_idx:end_idx] for (start_idx, end_idx) in start_end_index_tuples
     ]
 
-    split_sets = (
-        Subset(dataset, set_indices) for set_indices in set_selection_index_lists
-    )
-
-    return split_sets
+    return (Subset(dataset, set_indices) for set_indices in set_selection_index_lists)

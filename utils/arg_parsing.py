@@ -59,13 +59,24 @@ def add_extra_option_args(parser):
     Argument parser
     :return: parsed arguments
     """
+    # model
+    parser.add_argument("--model.type", type=str, default="ViT32LastTimeStep")
+    parser.add_argument("--model.dropout_rate", type=float, default=0.3)
     parser.add_argument("--model.depth", type=int, default=18)
     parser.add_argument("--model.widen_factor", type=int, default=1)
+    parser.add_argument("--model.pretrained", default=False, action="store_true")
+    parser.add_argument("--model.model_name_to_download", type=str, default="ViT-B-32")
+    parser.add_argument("--model.grid_patch_size", type=int, default=32)
+    parser.add_argument("--model.transformer_num_filters", type=int, default=768)
+    parser.add_argument("--model.transformer_num_layers", type=int, default=12)
+    parser.add_argument("--model.transformer_num_heads", type=int, default=12)
+
     parser.add_argument(
         "--max_gpu_selection_load",
         type=float,
         default=0.01,
-        help="A float between 0 and 1.0 indicating the max percentage of utilization a GPU must have in order to "
+        help="A float between 0 and 1.0 indicating the max percentage of utilization "
+        "a GPU must have in order to "
         "be considered "
         "as available for usage",
     )
@@ -73,7 +84,8 @@ def add_extra_option_args(parser):
         "--max_gpu_selection_memory",
         type=float,
         default=0.01,
-        help="A float between 0 and 1.0 indicating the max memory percentage being used on a GPU in order to "
+        help="A float between 0 and 1.0 indicating the max memory percentage being "
+        "used on a GPU in order to "
         "be considered "
         "as available for usage",
     )
@@ -100,7 +112,7 @@ def process_args(parser):
     if isinstance(args, argparse.Namespace):
         args = vars(args)
 
-    args_tree_like_structure = dict()
+    args_tree_like_structure = {}
 
     for key, value in args.items():
         if "." in key:
@@ -116,6 +128,10 @@ def process_args(parser):
 
         else:
             args_tree_like_structure[key] = value
+
+    for key, value in args_tree_like_structure.items():
+        if isinstance(value, dict):
+            args_tree_like_structure[key] = DictWithDotNotation(value)
 
     args = DictWithDotNotation(args_tree_like_structure)
     arg_summary_string = pprint.pformat(args, indent=4)
