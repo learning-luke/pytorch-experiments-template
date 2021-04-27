@@ -10,18 +10,17 @@ def generate_hyperparameter_combination_dicts(hyperparameter_config):
         temp_copy = deepcopy(combinations)
         combinations = []
 
-        if len(temp_copy) == 0:
-            for value in values:
+        for value in values:
+            if not temp_copy:
                 combinations.append([value])
-        else:
-            for value in values:
+            else:
                 temp_copy_2 = deepcopy(temp_copy)
-                for i in range(len(temp_copy_2)):
-                    temp_copy_2[i] += [value]
+                for item in temp_copy_2:
+                    item += [value]
 
                 combinations.extend(temp_copy_2)
 
-    hyperparameter_combinations_dict = [
+    return [
         {
             key.replace("dot", "."): value
             for key, value in zip(
@@ -30,8 +29,6 @@ def generate_hyperparameter_combination_dicts(hyperparameter_config):
         }
         for values in combinations
     ]
-
-    return hyperparameter_combinations_dict
 
 
 def generate_hyperparameter_search_experiment_configs(

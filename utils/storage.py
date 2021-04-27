@@ -14,6 +14,7 @@ import requests
 import tqdm  # progress bar
 import os.path
 
+
 def isfloat(x):
     return isinstance(x, float)
 
@@ -28,7 +29,8 @@ def save_dict_in_json(path, metrics_dict, overwrite):
     :param log_dir: Directory of log
     :param metrics_file_name: Name of .csv file
     :param metrics_dict: A dict of metrics to add in the file
-    :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
+    :param overwrite: If True overwrites any existing files with the same filepath,
+    if False adds metrics to existing
     """
 
     if path.endswith(".json"):
@@ -81,7 +83,8 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
     :param log_dir: Directory of log
     :param metrics_file_name: Name of .csv file
     :param metrics_dict: A dict of metrics to add in the file
-    :param overwrite: If True overwrites any existing files with the same filepath, if False adds metrics to existing
+    :param overwrite: If True overwrites any existing files with the same filepath,
+    if False adds metrics to existing
     """
     if not path.endswith(".pt"):
         path = "{}.pt".format(path)
@@ -96,7 +99,8 @@ def save_metrics_dict_in_pt(path, metrics_dict, overwrite):
 
 def save_checkpoint(state, is_best, directory="", filename="", epoch_idx=None):
     """
-    Checkpoint saving utility, to ensure that the checkpoints are saved in the right place
+    Checkpoint saving utility, to ensure that the checkpoints are saved in the
+    right place
     :param state: this is what gets saved.
     :param is_best: if this is the current best model, save a copy of it with a `best_`
     :param directory: where to save
@@ -113,7 +117,8 @@ def save_checkpoint(state, is_best, directory="", filename="", epoch_idx=None):
 
 def restore_model(restore_fields, directory, filename, epoch_idx=None, device="cpu"):
     """
-    Model restoration. This is built into the experiment framework and args.latest_loadpath should contain the path
+    Model restoration. This is built into the experiment framework and
+    args.latest_loadpath should contain the path
     to the latest restoration point. This is automatically set in the framework
     :param net: Network to restore weights of
     :param optimizer: sometimes the optimizer also needs to be restored.
@@ -137,9 +142,7 @@ def restore_model(restore_fields, directory, filename, epoch_idx=None, device="c
     for name, field in restore_fields.items():
         new_state_dict = OrderedDict()
         for k, v in checkpoint[name].items():
-            if "module" in k and (
-                device == "cpu" or torch.cuda.device_count() == 1
-            ):
+            if "module" in k and (device == "cpu" or torch.cuda.device_count() == 1):
                 name = k.replace("module.", "")  # remove module.
             else:
                 name = k
@@ -151,7 +154,8 @@ def restore_model(restore_fields, directory, filename, epoch_idx=None, device="c
 
 def build_experiment_folder(experiment_name, log_path, save_images=True):
     """
-    An experiment logging folder goes along with each experiment. This builds that folder
+    An experiment logging folder goes along with each experiment. This builds that
+    folder
     :param args: dictionary of arguments
     :return: filepaths for saved models, logs, and images
     """
@@ -190,7 +194,8 @@ def get_best_performing_epoch_on_target_metric(
 ):
     """
     utility for finding best epoch thus far
-    :param: metrics_dict: A dictionary containing the collected metrics from which to extract the best perf. model epoch
+    :param: metrics_dict: A dictionary containing the collected metrics from which to
+    extract the best perf. model epoch
     target_metric:
     ranking_method:
     :return: best epoch, and what the best target metric value was
@@ -238,4 +243,3 @@ def download_file(url, filename=False, verbose=False):
         ):
             fp.write(chunk)
     return local_filename
-
