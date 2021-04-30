@@ -104,19 +104,6 @@ def housekeeping():
     args.logs_filepath = logs_filepath
     args.images_filepath = images_filepath
 
-    #  if you have an environment variable set, prioritise this over the default
-    # argparse option
-    environment_data_filepath = os.environ.get("PYTORCH_DATA_LOC")
-    if environment_data_filepath is not None and os.path.exists(
-            environment_data_filepath
-    ):
-        logging.warning(
-            f"You have a data filepath set in your environment: "
-            f"{environment_data_filepath}. This will override "
-            f"argparse. "
-        )
-        args.data_filepath = environment_data_filepath
-
     # Determinism Seeding can be annoying in pytorch at the moment.
     # Based on my experience, the below means of seeding allows for deterministic
     # experimentation.
@@ -146,7 +133,7 @@ def housekeeping():
         for file in all_files:
             tar.add(file)
 
-    return args, environment_data_filepath
+    return args
 
 
 def train(epoch, data_loader, model, metric_tracker, progress_reporter):
@@ -210,7 +197,7 @@ def eval(epoch, data_loader, model, metric_tracker, progress_reporter):
 if __name__ == "__main__":
     #############################################HOUSE-KEEPING##########################################################
     # Set variables, file keeping, logic, etc.
-    args, environment_data_filepath = housekeeping()
+    args = housekeeping()
 
     #############################################DATA-LOADING###########################################################
 
@@ -225,9 +212,7 @@ if __name__ == "__main__":
         num_classes,
     ) = load_dataset(
         args.dataset_name,
-        args.data_filepath
-        if environment_data_filepath is None
-        else environment_data_filepath,
+        args.data_filepath,
         batch_size=args.batch_size,
         test_batch_size=args.eval_batch_size,
         num_workers=args.num_workers,
