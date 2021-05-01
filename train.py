@@ -1,25 +1,26 @@
 import argparse
 import glob
-import logging
 import os
 import random
 import tarfile
 import time
+
+import numpy as np
 import torch
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
-import numpy as np
+from pytorch_model_summary import summary
 from rich.live import Live
+from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
+
+from datasets.dataset_loading_hub import load_dataset
 from models import model_zoo
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
+from utils.metric_tracking import MetricTracker, compute_accuracy
 from utils.pretty_progress_reporting import PrettyProgressReporter
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
-from pytorch_model_summary import summary
-from datasets.dataset_loading_hub import load_dataset
-from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-from utils.metric_tracking import MetricTracker, compute_accuracy
 
 
 def get_base_argument_parser():
@@ -127,7 +128,7 @@ def housekeeping():
     snapshot_filename = f"{saved_models_filepath}/snapshot.tar.gz"
     filetypes_to_include = [".py"]
     all_files = []
-    for filetype in filetypes_to_include:
+    for _ in filetypes_to_include:
         all_files += glob.glob("**/*.py", recursive=True)
     with tarfile.open(snapshot_filename, "w:gz") as tar:
         for file in all_files:
@@ -138,8 +139,6 @@ def housekeeping():
 
 def train(epoch, data_loader, model, metric_tracker, progress_reporter):
     model = model.train()
-    # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
-    num_batches = len(data_loader)
     epoch_start_time = time.time()
 
     for batch_idx, (inputs, targets) in enumerate(data_loader):
@@ -169,8 +168,6 @@ def train(epoch, data_loader, model, metric_tracker, progress_reporter):
 
 
 def eval(epoch, data_loader, model, metric_tracker, progress_reporter):
-    # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
-    num_batches = len(data_loader)
     epoch_start_time = time.time()
     model = model.eval()
 
@@ -195,11 +192,11 @@ def eval(epoch, data_loader, model, metric_tracker, progress_reporter):
 
 
 if __name__ == "__main__":
-    #############################################HOUSE-KEEPING##########################################################
+    #############################################HOUSE-KEEPING##########################
     # Set variables, file keeping, logic, etc.
     args = housekeeping()
 
-    #############################################DATA-LOADING###########################################################
+    #############################################DATA-LOADING###########################
 
     (
         train_set_loader,
@@ -221,13 +218,14 @@ if __name__ == "__main__":
     )
     args.model.num_classes = num_classes
 
-    #############################################MODEL-DEFINITION#######################################################
+    #############################################MODEL-DEFINITION#######################
 
     model = model_zoo[args.model.type](**args.model)
 
     # alternatively one can define a model directly as follows
     # ```
-    # model = ResNet18(num_classes=num_classes, variant=args.dataset_name).to(args.device)
+    # model = ResNet18(num_classes=num_classes, variant=args.dataset_name)
+    # .to(args.device)
     # ```
 
     print(
@@ -244,7 +242,7 @@ if __name__ == "__main__":
     if args.num_gpus_to_use > 1:
         model = nn.parallel.DataParallel(model)
 
-    #############################################OPTIMISATION###########################################################
+    #############################################OPTIMISATION###########################
 
     params = model.parameters()
     criterion = nn.CrossEntropyLoss()
@@ -268,7 +266,7 @@ if __name__ == "__main__":
     else:
         scheduler = MultiStepLR(optimizer, milestones=args.milestones, gamma=0.2)
 
-    #############################################RESTART/RESTORE/RESUME#################################################
+    #############################################RESTART/RESTORE/RESUME#################
 
     restore_fields = {
         "model": model if not isinstance(model, nn.DataParallel) else model.module,
@@ -295,7 +293,7 @@ if __name__ == "__main__":
         else:
             start_epoch = resume_epoch + 1
 
-    #############################################METRIC-TRACKING########################################################
+    #############################################METRIC-TRACKING########################
 
     metrics_to_track = {
         "cross_entropy": lambda x, y: torch.nn.CrossEntropyLoss()(x, y).item(),
@@ -311,7 +309,7 @@ if __name__ == "__main__":
         for tracker_name in ["training", "validation", "testing"]
     )
 
-    #############################################PROGRESS-REPORTING#####################################################
+    #############################################PROGRESS-REPORTING#####################
 
     progress_reporter = PrettyProgressReporter(
         metric_trackers=(metric_tracker_train, metric_tracker_val, metric_tracker_test),
@@ -325,7 +323,7 @@ if __name__ == "__main__":
         test=args.test,
     )
 
-    #############################################TRAINING###############################################################
+    #############################################TRAINING###############################
 
     train_iterations = 0
 
@@ -385,7 +383,7 @@ if __name__ == "__main__":
                 is_best=False,
             )
 
-        #############################################TESTING############################################################
+        #############################################TESTING############################
 
         if args.test:
             if args.val_set_percentage >= 0.0:
