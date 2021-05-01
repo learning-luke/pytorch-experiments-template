@@ -1,25 +1,26 @@
 import argparse
 import glob
-import logging
 import os
 import random
 import tarfile
 import time
+
+import numpy as np
 import torch
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
-import numpy as np
+from pytorch_model_summary import summary
 from rich.live import Live
+from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
+
+from datasets.dataset_loading_hub import load_dataset
 from models import model_zoo
 from utils.arg_parsing import add_extra_option_args, process_args
 from utils.gpu_selection_utils import select_devices
+from utils.metric_tracking import MetricTracker, compute_accuracy
 from utils.pretty_progress_reporting import PrettyProgressReporter
 from utils.storage import build_experiment_folder, save_checkpoint, restore_model
-from pytorch_model_summary import summary
-from datasets.dataset_loading_hub import load_dataset
-from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-from utils.metric_tracking import MetricTracker, compute_accuracy
 
 
 def get_base_argument_parser():
@@ -138,8 +139,6 @@ def housekeeping():
 
 def train(epoch, data_loader, model, metric_tracker, progress_reporter):
     model = model.train()
-    # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
-    num_batches = len(data_loader)
     epoch_start_time = time.time()
 
     for batch_idx, (inputs, targets) in enumerate(data_loader):
@@ -169,8 +168,6 @@ def train(epoch, data_loader, model, metric_tracker, progress_reporter):
 
 
 def eval(epoch, data_loader, model, metric_tracker, progress_reporter):
-    # with tqdm.tqdm(initial=0, total=len(data_loader), smoothing=0) as pbar:
-    num_batches = len(data_loader)
     epoch_start_time = time.time()
     model = model.eval()
 
