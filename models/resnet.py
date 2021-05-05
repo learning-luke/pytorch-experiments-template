@@ -174,7 +174,9 @@ class PreActBottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
+    def __init__(
+        self, block, num_blocks, num_classes=10, variant=None, in_channels=3, **kwargs
+    ):
         super(ResNet, self).__init__()
         self.in_planes = 64
 

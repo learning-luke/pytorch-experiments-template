@@ -47,6 +47,7 @@ class DenseNet(nn.Module):
         reduction=0.5,
         num_classes=10,
         in_channels=3,
+        **kwargs
     ):
         super(DenseNet, self).__init__()
         self.growth_rate = growth_rate
