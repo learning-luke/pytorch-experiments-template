@@ -1,16 +1,21 @@
-name: exp
+name: pytorch
 channels:
   - pytorch
-  - conda-forge
   - defaults
+  - conda-forge
 dependencies:
-  - pytorch-model-summary=0.1.1
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=1_llvm
+  - backports=1.0=py_2
+  - backports.functools_lru_cache=1.6.4=pyhd8ed1ab_0
   - blas=1.0=mkl
+  - brotlipy=0.7.0=py38h497a2fe_1001
   - bzip2=1.0.8=h7f98852_4
-  - ca-certificates=2021.1.19=h06a4308_1
-  - certifi=2020.12.5=py38h06a4308_0
+  - ca-certificates=2020.12.5=ha878542_0
+  - certifi=2020.12.5=py38h578d9bd_1
+  - cffi=1.14.5=py38ha65f79e_0
+  - chardet=4.0.0=py38h578d9bd_1
+  - cryptography=3.4.7=py38ha5dfef3_0
   - cudatoolkit=11.1.1=h6406543_8
   - cycler=0.10.0=py38_0
   - dbus=1.13.18=hb2f20db_0
@@ -18,12 +23,14 @@ dependencies:
   - ffmpeg=4.3=hf484d3e_0
   - fontconfig=2.13.1=h6c09931_0
   - freetype=2.10.4=h0708190_1
+  - ftfy=6.0.1=pyhd8ed1ab_0
   - glib=2.68.0=h36276a3_0
   - gmp=6.2.1=h58526e2_0
   - gnutls=3.6.13=h85f3911_1
   - gst-plugins-base=1.14.0=h8213a91_2
   - gstreamer=1.14.0=h28cd5cc_2
   - icu=58.2=he6710b0_3
+  - idna=2.10=pyh9f0ad1d_0
   - jpeg=9b=h024ee3a_2
   - kiwisolver=1.3.1=py38h2531618_0
   - lame=3.100=h7f98852_1001
@@ -55,20 +62,26 @@ dependencies:
   - numpy-base=1.19.2=py38hfa32c7d_0
   - olefile=0.46=pyh9f0ad1d_1
   - openh264=2.1.1=h780b84a_0
-  - openssl=1.1.1k=h27cfd23_0
+  - openssl=1.1.1k=h7f98852_0
   - pandas=1.2.3=py38ha9443f7_0
   - pcre=8.44=he6710b0_0
   - pillow=8.2.0=py38he98fc37_0
   - pip=21.0.1=py38h06a4308_0
+  - pycparser=2.20=pyh9f0ad1d_2
+  - pyopenssl=20.0.1=pyhd8ed1ab_0
   - pyparsing=2.4.7=pyhd3eb1b0_0
   - pyqt=5.9.2=py38h05f1152_4
+  - pysocks=1.7.1=py38h578d9bd_3
   - python=3.8.8=hdb3f193_4
   - python-dateutil=2.8.1=pyhd3eb1b0_0
   - python_abi=3.8=1_cp38
   - pytorch=1.8.1=py3.8_cuda11.1_cudnn8.0.5_0
+  - pytorch-model-summary=0.1.1=py_0
   - pytz=2021.1=pyhd3eb1b0_0
   - qt=5.9.7=h5867ecd_1
   - readline=8.1=h27cfd23_0
+  - regex=2021.4.4=py38h497a2fe_0
+  - requests=2.25.1=pyhd3deb0d_0
   - scipy=1.6.2=py38h91f5cce_0
   - seaborn=0.11.1=pyhd3eb1b0_0
   - setuptools=52.0.0=py38h06a4308_0
@@ -81,6 +94,8 @@ dependencies:
   - tornado=6.1=py38h27cfd23_0
   - tqdm=4.59.0=pyhd3eb1b0_1
   - typing_extensions=3.7.4.3=py_0
+  - urllib3=1.26.4=pyhd8ed1ab_0
+  - wcwidth=0.2.5=pyh9f0ad1d_2
   - wheel=0.36.2=pyhd3eb1b0_0
   - xz=5.2.5=h7b6447c_0
   - zlib=1.2.11=h7b6447c_3
@@ -91,3 +106,4 @@ dependencies:
     - gputil==1.4.0
     - pygments==2.8.1
     - rich==10.1.0
+prefix: /disk/scratch1/adamjelley/miniforge3/envs/pytorch
