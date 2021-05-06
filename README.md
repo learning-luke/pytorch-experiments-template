@@ -2,7 +2,7 @@
 
 ![Licence](https://img.shields.io/github/license/BayesWatch/pytorch-experiments-template)
 ![Code formatting](https://camo.githubusercontent.com/d91ed7ac7abbd5a6102cbe988dd8e9ac21bde0a73d97be7603b891ad08ce3479/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f636f64652532307374796c652d626c61636b2d3030303030302e737667)
-![Documentation status](https://readthedocs.org/projects/pytorch-experiments-template-docs/badge/?version=latest)](https://pytorch-experiments-template-docs.readthedocs.io/en/latest/?badge=latest)
+![Documentation status](https://readthedocs.org/projects/pytorch-experiments-template-docs/badge/?version=latest)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/bayeswatch/pytorch-experiments-template/CI)
 
 This is a template for deep learning projects using PyTorch (particularly for classification).
