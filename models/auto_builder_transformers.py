@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from rich import print
 
+from utils.decorators import ignore_unexpected_kwargs
 from models.auto_builder_models import ClassificationModel
 from models.clip_models.model import Transformer, LayerNorm, model_to_download_url_dict
 from utils.storage import download_file
@@ -17,6 +18,7 @@ import torch.nn as nn
 
 
 class VisualTransformer(nn.Module):
+    @ignore_unexpected_kwargs
     def __init__(
         self,
         grid_patch_size: int,
@@ -131,11 +133,11 @@ class VisualTransformer(nn.Module):
             target_url = model_to_download_url_dict[self.model_name_to_download]
             download_file(url=target_url, filename=model_weights_filepath, verbose=True)
         test_dict = {
-                key: value
-                for key, value in torch.load(
-                    model_weights_filepath
-                ).visual.named_parameters()
-            }
+            key: value
+            for key, value in torch.load(
+                model_weights_filepath
+            ).visual.named_parameters()
+        }
         for key, value in test_dict.items():
             print(key, value.shape)
         named_parameters = OrderedDict(
@@ -152,7 +154,6 @@ class VisualTransformer(nn.Module):
 
         if self.pretrained and x.shape[2] != 224:
             x = F.interpolate(x, size=(224, 224))
-
 
         if not self.is_built:
             self.build(input_shape=x.shape)
@@ -189,7 +190,8 @@ class VisualTransformer(nn.Module):
         return out
 
 
-class EasyPeasyViTFlatten(ClassificationModel):
+class AutoViTFlatten(ClassificationModel):
+    @ignore_unexpected_kwargs
     def __init__(
         self,
         num_classes,
@@ -200,7 +202,6 @@ class EasyPeasyViTFlatten(ClassificationModel):
         model_name_to_download: str,
         stem_conv_bias=False,
         pretrained=True,
-        **kwargs,
     ):
         feature_embedding_modules = [VisualTransformer]
         feature_embeddings_args = [
@@ -214,7 +215,7 @@ class EasyPeasyViTFlatten(ClassificationModel):
                 stem_conv_bias=stem_conv_bias,
             ),
         ]
-        super(EasyPeasyViTFlatten, self).__init__(
+        super(AutoViTFlatten, self).__init__(
             num_classes=num_classes,
             feature_embedding_module_list=feature_embedding_modules,
             feature_embedding_args=feature_embeddings_args,
@@ -230,7 +231,8 @@ class ChooseSpecificTimeStepFromVector(nn.Module):
         return x[:, self.time_step_to_choose, :]
 
 
-class EasyPeasyViTLastTimeStep(ClassificationModel):
+class AutoViTLastTimeStep(ClassificationModel):
+    @ignore_unexpected_kwargs
     def __init__(
         self,
         num_classes,
@@ -241,7 +243,6 @@ class EasyPeasyViTLastTimeStep(ClassificationModel):
         model_name_to_download: str,
         stem_conv_bias=False,
         pretrained=True,
-        **kwargs,
     ):
         feature_embedding_modules = [
             VisualTransformer,
@@ -259,7 +260,7 @@ class EasyPeasyViTLastTimeStep(ClassificationModel):
             ),
             dict(time_step_to_choose=0),
         ]
-        super(EasyPeasyViTLastTimeStep, self).__init__(
+        super(AutoViTLastTimeStep, self).__init__(
             num_classes=num_classes,
             feature_embedding_module_list=feature_embedding_modules,
             feature_embedding_args=feature_embeddings_args,

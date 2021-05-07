@@ -8,6 +8,8 @@ import torch.nn.functional as F
 
 __all__ = ["WideResNet", "WideResNet_16_8", "WideResNet_28_10", "WideResNet_40_2"]
 
+from utils.decorators import ignore_unexpected_kwargs
+
 
 class BasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0):
@@ -57,12 +59,15 @@ class NetworkBlock(nn.Module):
         )
 
     def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate):
-        layers = [block(
-                    i == 0 and in_planes or out_planes,
-                    out_planes,
-                    i == 0 and stride or 1,
-                    dropRate,
-                ) for i in range(int(nb_layers))]
+        layers = [
+            block(
+                i == 0 and in_planes or out_planes,
+                out_planes,
+                i == 0 and stride or 1,
+                dropRate,
+            )
+            for i in range(int(nb_layers))
+        ]
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -70,8 +75,14 @@ class NetworkBlock(nn.Module):
 
 
 class WideResNet(nn.Module):
+    @ignore_unexpected_kwargs
     def __init__(
-        self, depth, num_classes=10, widen_factor=1, dropRate=0.0, in_channels=3
+        self,
+        depth,
+        num_classes=10,
+        widen_factor=1,
+        dropRate=0.0,
+        in_channels=3,
     ):
         super(WideResNet, self).__init__()
         nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]

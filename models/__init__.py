@@ -1,8 +1,9 @@
-from .auto_builder_models import EasyPeasyResNet
+from .auto_builder_models import AutoResNet
 from .densenet import *
 from .resnet import *
 from .wresnet import *
 from .auto_builder_transformers import *
+
 
 model_zoo = {
     "ResNet9": ResNet9,
@@ -23,7 +24,7 @@ model_zoo = {
     "WideResNet_16_8": WideResNet_16_8,
     "WideResNet_28_10": WideResNet_28_10,
     "WideResNet_40_2": WideResNet_40_2,
-    "ViT32LastTimeStep": EasyPeasyViTLastTimeStep,
-    "ViT32Flatten": EasyPeasyViTFlatten,
-    "EasyPeasyResNet": EasyPeasyResNet
+    "ViT32LastTimeStep": AutoViTLastTimeStep,
+    "ViT32Flatten": AutoViTFlatten,
+    "AutoResNet": AutoResNet,
 }

@@ -1,14 +1,14 @@
 from models.auto_builder_models import (
-    EasyPeasyResNet,
-    EasyPeasyConvNet,
-    EasyPeasyConvRelationalNet,
+    AutoResNet,
+    AutoConvNet,
+    AutoConvRelationalNet,
 )
 
 import torch
 
 from models.auto_builder_transformers import (
-    EasyPeasyViTFlatten,
-    EasyPeasyViTLastTimeStep,
+    AutoViTFlatten,
+    AutoViTLastTimeStep,
 )
 
 RUN_CUDA_TESTS = False
@@ -29,8 +29,8 @@ def apply_to_test_device(model, input_tensor):
     return model, input_tensor
 
 
-def test_EasyPeasyConvNet_layer_output_shape():
-    model = EasyPeasyConvNet(
+def test_AutoConvNet_layer_output_shape():
+    model = AutoConvNet(
         num_classes=10,
         kernel_size=3,
         filter_list=[16, 8, 64],
@@ -45,8 +45,8 @@ def test_EasyPeasyConvNet_layer_output_shape():
     assert len(out.shape) == 2
 
 
-def test_EasyPeasyConvRelationalNet_layer_output_shape():
-    model = EasyPeasyConvRelationalNet(
+def test_AutoConvRelationalNet_layer_output_shape():
+    model = AutoConvRelationalNet(
         num_classes=10,
         kernel_size=3,
         filter_list=[16, 8, 64],
@@ -64,8 +64,8 @@ def test_EasyPeasyConvRelationalNet_layer_output_shape():
     assert len(out.shape) == 2
 
 
-def test_EasyPeasyResNet_layer_output_shape():
-    model = EasyPeasyResNet(
+def test_AutoResNet_layer_output_shape():
+    model = AutoResNet(
         num_classes=10,
         model_name_to_download="resnet18",
         pretrained=True,
@@ -77,7 +77,7 @@ def test_EasyPeasyResNet_layer_output_shape():
     assert out.shape[1] == 10
     assert len(out.shape) == 2
 
-    model = EasyPeasyResNet(
+    model = AutoResNet(
         num_classes=10,
         model_name_to_download="resnet18",
         pretrained=False,
@@ -90,8 +90,8 @@ def test_EasyPeasyResNet_layer_output_shape():
     assert len(out.shape) == 2
 
 
-def test_EasyPeasyViTFlatten_layer_output_shape():
-    model = EasyPeasyViTFlatten(
+def test_AutoViTFlatten_layer_output_shape():
+    model = AutoViTFlatten(
         grid_patch_size=32,
         transformer_num_filters=512,
         transformer_num_layers=8,
@@ -108,8 +108,8 @@ def test_EasyPeasyViTFlatten_layer_output_shape():
     assert out.shape[1] == 10
 
 
-def test_EasyPeasyViTLastTimeStep_layer_output_shape():
-    model = EasyPeasyViTLastTimeStep(
+def test_AutoViTLastTimeStep_layer_output_shape():
+    model = AutoViTLastTimeStep(
         grid_patch_size=32,
         transformer_num_filters=512,
         transformer_num_layers=8,
@@ -126,8 +126,8 @@ def test_EasyPeasyViTLastTimeStep_layer_output_shape():
     assert out.shape[1] == 10
 
 
-def test_EasyPeasyViTFlattenPretrained_layer_output_shape():
-    model = EasyPeasyViTFlatten(
+def test_AutoViTFlattenPretrained_layer_output_shape():
+    model = AutoViTFlatten(
         grid_patch_size=32,
         transformer_num_filters=768,
         transformer_num_layers=12,
@@ -144,8 +144,8 @@ def test_EasyPeasyViTFlattenPretrained_layer_output_shape():
     assert out.shape[1] == 10
 
 
-def test_EasyPeasyViTLastTimeStepPretrained_layer_output_shape():
-    model = EasyPeasyViTFlatten(
+def test_AutoViTLastTimeStepPretrained_layer_output_shape():
+    model = AutoViTFlatten(
         grid_patch_size=32,
         transformer_num_filters=768,
         transformer_num_layers=12,
