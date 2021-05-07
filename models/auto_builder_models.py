@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from rich import print
 
-from models import ignore_unexpected_kwargs
+from utils.decorators import ignore_unexpected_kwargs
 
 
 class ClassificationModel(nn.Module):

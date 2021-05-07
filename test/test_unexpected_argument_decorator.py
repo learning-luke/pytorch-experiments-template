@@ -1,4 +1,4 @@
-from models import ignore_unexpected_kwargs
+from utils.decorators import ignore_unexpected_kwargs
 
 
 def test_ignore_unexpected_kwargs():

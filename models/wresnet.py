@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 __all__ = ["WideResNet", "WideResNet_16_8", "WideResNet_28_10", "WideResNet_40_2"]
 
-from models import ignore_unexpected_kwargs
+from utils.decorators import ignore_unexpected_kwargs
 
 
 class BasicBlock(nn.Module):

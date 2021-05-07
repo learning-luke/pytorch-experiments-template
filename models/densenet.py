@@ -8,7 +8,7 @@ from rich import print
 
 __all__ = ["DenseNet121", "DenseNet169", "DenseNet201", "DenseNet161"]
 
-from models import ignore_unexpected_kwargs
+from utils.decorators import ignore_unexpected_kwargs
 
 
 class Bottleneck(nn.Module):

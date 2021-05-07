@@ -24,7 +24,7 @@ __all__ = [
     "PreActResNet152",
 ]
 
-from models import ignore_unexpected_kwargs
+from utils.decorators import ignore_unexpected_kwargs
 
 
 class BasicBlock(nn.Module):

@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from rich import print
 
-from models import ignore_unexpected_kwargs
+from utils.decorators import ignore_unexpected_kwargs
 from models.auto_builder_models import ClassificationModel
 from models.clip_models.model import Transformer, LayerNorm, model_to_download_url_dict
 from utils.storage import download_file
