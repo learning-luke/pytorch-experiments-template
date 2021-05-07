@@ -4,13 +4,25 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from collections import namedtuple
 
+from dataclasses import dataclass
+
 from torch.utils.data import Subset
 
 from datasets.custom_transforms import SimCLRTransform
 from utils.cinic_utils import extend_cinic_10, download_cinic
 from rich import print
 
-ImageShape = namedtuple("ImageShape", ["channels", "width", "height"])
+
+@dataclass
+class ImageShape:
+    channels: int
+    width: int
+    height: int
+
+    def __iter__(self):
+        # making this class iterable means we can convert it to a list if we need to
+        for each in self.__dict__.values():
+            yield each
 
 
 class MNISTLoader:

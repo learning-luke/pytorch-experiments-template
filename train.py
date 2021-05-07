@@ -217,6 +217,7 @@ if __name__ == "__main__":
         val_set_percentage=args.val_set_percentage,
     )
     args.model.num_classes = num_classes
+    args.model.in_channels = data_shape.channels
 
     #############################################MODEL-DEFINITION#######################
 
