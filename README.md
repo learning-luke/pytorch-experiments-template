@@ -105,11 +105,6 @@ We also encourage you to write tests for your code and put them in `test/` (alth
 
 ### Example runs
 
-To train a small ResNet on MNIST:
-```bash
-python train.py --experiment_name mnist_example --dataset MNIST --model.type ResNet9
-```
-
 To train a ResNet-18 on CIFAR100:
 ```bash
 python train.py --experiment_name cifar100_example --dataset CIFAR100 --model.type ResNet18
