@@ -24,6 +24,8 @@ __all__ = [
     "PreActResNet152",
 ]
 
+from models import ignore_unexpected_kwargs
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -174,9 +176,8 @@ class PreActBottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(
-        self, block, num_blocks, num_classes=10, variant=None, in_channels=3, **kwargs
-    ):
+    @ignore_unexpected_kwargs
+    def __init__(self, block, num_blocks, num_classes=10, variant=None, in_channels=3):
         super(ResNet, self).__init__()
         self.in_planes = 64
 

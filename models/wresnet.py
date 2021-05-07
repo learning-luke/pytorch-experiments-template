@@ -8,6 +8,8 @@ import torch.nn.functional as F
 
 __all__ = ["WideResNet", "WideResNet_16_8", "WideResNet_28_10", "WideResNet_40_2"]
 
+from models import ignore_unexpected_kwargs
+
 
 class BasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0):
@@ -73,6 +75,7 @@ class NetworkBlock(nn.Module):
 
 
 class WideResNet(nn.Module):
+    @ignore_unexpected_kwargs
     def __init__(
         self,
         depth,
@@ -80,7 +83,6 @@ class WideResNet(nn.Module):
         widen_factor=1,
         dropRate=0.0,
         in_channels=3,
-        **kwargs
     ):
         super(WideResNet, self).__init__()
         nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
